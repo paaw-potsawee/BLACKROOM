@@ -1,3 +1,6 @@
+from BPlusTree import BPlusTree
+
+
 class Hotel:
     def __init__(self):
-        pass
+        self.__tree = BPlusTree()
