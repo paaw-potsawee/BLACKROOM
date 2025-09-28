@@ -31,9 +31,9 @@ class TestBPlusTree(unittest.TestCase):
                 # Find the leftmost leaf
                 node = tree.root
                 while not node.is_leaf:
-                    node = node.keys[0]
+                    node = node.children[0]
                 # Check that the smallest value is in the leftmost leaf
-                self.assertIn(self.sorted_cases[idx][0], node.values)
+                self.assertIn(self.sorted_cases[idx][0], node.keys)
 
     def test_all_leaves_content(self):
         for idx, tree in enumerate(self.trees):
@@ -41,10 +41,10 @@ class TestBPlusTree(unittest.TestCase):
                 # Collect all values from all leaves
                 node = tree.root
                 while not node.is_leaf:
-                    node = node.keys[0]
+                    node = node.children[0]
                 result = []
                 while node:
-                    result.extend(node.values)
+                    result.extend(node.keys)
                     node = node.next_key
                 self.assertEqual(result, self.sorted_cases[idx])
 
