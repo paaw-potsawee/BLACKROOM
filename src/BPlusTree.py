@@ -1,8 +1,7 @@
 class Node:
-    def __init__(self, order: int, is_leaf: bool = True):
-        self.__order: int = order
-        self.__keys = []         # was __values
-        self.__children = []     # was __keys
+    def __init__(self, is_leaf: bool = True):
+        self.__keys = []
+        self.__children = []
         self.__next_key = None
         self.__parent = None
         self.__is_leaf = is_leaf
@@ -42,9 +41,6 @@ class Node:
     def is_leaf(self): return self.__is_leaf
 
     @property
-    def order(self): return self.__order
-
-    @property
     def next_key(self): return self.__next_key
     @next_key.setter
     def next_key(self, data): self.__next_key = data
@@ -58,7 +54,8 @@ class BPlusTree:
     def __init__(self, order: int = 4):
         if order < 3:
             raise ValueError('B+ tree order should not  less than 3')
-        self.__root = Node(order, is_leaf=True)
+        self.__order: int = order
+        self.__root: Node = Node(is_leaf=True)
 
     @property
     def root(self): return self.__root
@@ -70,11 +67,10 @@ class BPlusTree:
         # search for leaf node
         leaf_node = self.search_leaf(node, val)
         leaf_node.insert(val)
-        order = leaf_node.order
 
-        if len(leaf_node.keys) > order - 1:
+        if len(leaf_node.keys) > self.__order - 1:
             mid = len(leaf_node.keys) // 2
-            new_leaf = Node(order, is_leaf=True)
+            new_leaf = Node(is_leaf=True)
             new_leaf.keys = leaf_node.keys[mid:]
             leaf_node.keys = leaf_node.keys[:mid]
             new_leaf.next_key = leaf_node.next_key
@@ -82,7 +78,7 @@ class BPlusTree:
 
             # case where leaf node is root
             if leaf_node.parent is None:
-                new_root = Node(order, is_leaf=False)
+                new_root = Node(is_leaf=False)
                 new_root.keys = [new_leaf.keys[0]]
                 new_root.children = [leaf_node, new_leaf]
                 leaf_node.parent = new_root
@@ -103,12 +99,12 @@ class BPlusTree:
         new_child.parent = parent
 
         # check if parent overflows (if split recursively)
-        if len(parent.keys) > parent.order - 1:
+        if len(parent.keys) > self.__order - 1:
             mid = len(parent.keys) // 2
             promoted_val = parent.keys[mid]
 
             # create new internal node
-            new_node = Node(parent.order, is_leaf=False)
+            new_node = Node(is_leaf=False)
             new_node.keys = parent.keys[mid + 1:]
             new_node.children = parent.children[mid + 1:]
             # point child to new parent
@@ -120,7 +116,7 @@ class BPlusTree:
 
             if parent.parent is None:
                 # root
-                new_root = Node(parent.order, is_leaf=False)
+                new_root = Node(is_leaf=False)
                 new_root.keys = [promoted_val]
                 new_root.children = [parent, new_node]
                 parent.parent = new_root
@@ -135,16 +131,11 @@ class BPlusTree:
         n = len(leaf_node.keys)
         for i in range(n):
             if val == leaf_node.keys[i]:
-                leaf_node.keys.remove(i)
+                leaf_node.keys.remove(val)
                 break
             if i == n - 1:
                 print('not found')
                 return -1
-        # case where leaf still has other node
-        if len(leaf_node.keys) != 0:
-            pass
-        # update parent after deleting
-        # ???? how to
 
     def search_leaf(self, node: Node, val):
         while not node.is_leaf:
@@ -199,5 +190,7 @@ if __name__ == '__main__':
     tree.insert(14)
     tree.insert(15)
     tree.insert(16)
+    tree.delete(16)
+    tree.delete(16)
     tree.print_tree()
     tree.print_leaf()
