@@ -1,3 +1,6 @@
+from platform import node
+
+
 class Node:
     def __init__(self, order: int, is_leaf: bool = True):
         self.__order: int = order
@@ -156,16 +159,24 @@ class BPlusTree:
                         node = node.children[i]
                         break
         return node
+    
+    def search_value(self, val):
+        lead_node = self.search_leaf(self.__root, val)
+        for key in lead_node.keys:
+            if key == val:
+                return key
+        return None	
 
     def print_tree(self):
         print('print entire tree')
         self._print_tree(self.__root, 0)
 
     def _print_tree(self, node: Node, level: int):
-        if node is not None:
-            print(f'{level} -> {node}')
+        print('Level', level, ' ', len(node.keys), 'keys:', node)
+        level += 1
+        if not node.is_leaf:
             for child in node.children:
-                self._print_tree(child, level + 1)
+                self._print_tree(child, level)
 
     def print_leaf(self):
         print('print all data in tree')
