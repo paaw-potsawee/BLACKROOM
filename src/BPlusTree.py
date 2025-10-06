@@ -9,18 +9,24 @@ class Node:
         self.__parent: Optional["Node"] = None
         self.__is_leaf: bool = is_leaf
 
-    def insert(self, val):
+    def insert(self, key, val=None):
         if len(self.__keys) > 0:
             temp = self.__keys
             for i in range(len(temp)):
-                if val < self.__keys[i]:
-                    self.__keys.insert(i, val)
+                if key < self.__keys[i]:
+                    self.__keys.insert(i, key)
+                    if self.__is_leaf and val is not None:
+                        self.__children.insert(i, val)
                     break
                 elif i + 1 == len(temp):
-                    self.__keys.append(val)
+                    self.__keys.append(key)
+                    if self.__is_leaf and val is not None:
+                        self.__children.append(val)
                     break
         else:
-            self.__keys.append(val)
+            self.__keys.append(key)
+            if self.__is_leaf and val is not None:
+                self.__children.append(val)
 
     def __str__(self):
         # return f"{" ".join(list(map(str, (self.keys))))}"
@@ -83,19 +89,24 @@ class BPlusTree:
     @property
     def root(self): return self.__root
 
-    def insert(self, val):
-        self._insert(self.__root, val)
+    def insert(self, data):
+        self._insert(self.__root, data[0], data[1])
 
-    def _insert(self, node: Node, val):
+    def _insert(self, node: Node, key, val=None):
         # search for leaf node
-        leaf_node = self.search_leaf(node, val)
-        leaf_node.insert(val)
+        leaf_node = self.search_leaf(node, key)
+        leaf_node.insert(key, val)
 
         if len(leaf_node.keys) > self.__order - 1:
             mid = len(leaf_node.keys) // 2
             new_leaf = Node(is_leaf=True)
             new_leaf.keys = leaf_node.keys[mid:]
             leaf_node.keys = leaf_node.keys[:mid]
+            # split guest data
+            if leaf_node.is_leaf and len(leaf_node.children) > 0:
+                new_leaf.children = leaf_node.children[mid:]
+                leaf_node.children = leaf_node.children[:mid]
+
             new_leaf.next_key = leaf_node.next_key
             leaf_node.next_key = new_leaf
 
@@ -154,7 +165,11 @@ class BPlusTree:
             print('not found')
             return -1
 
+        idx = leaf_node.keys.index(val)
         leaf_node.keys.remove(val)
+
+        if leaf_node.is_leaf and len(leaf_node.children) > idx:
+            leaf_node.children.pop(idx)
 
         parent = leaf_node.parent
         # if leaf node is root
@@ -173,11 +188,15 @@ class BPlusTree:
         # try from left first
         if left and left.get_key_len() > self.__min_key:
             leaf_node.keys.insert(0, left.keys.pop())
+            if left.is_leaf and len(left.children) > 0:
+                leaf_node.children.insert(0, left.children.pop())
             self.__update_separator(leaf_node)
             return
         # try from right if left failed
         if right and right.get_key_len() > self.__min_key:
             leaf_node.keys.append(right.keys.pop(0))
+            if right.is_leaf and len(right.children) > 0:
+                leaf_node.children.append(right.children.pop(0))
             self.__update_separator(right)
             self.__update_separator(leaf_node)
             return
@@ -203,6 +222,7 @@ class BPlusTree:
         if left.is_leaf and right.is_leaf:
             # merge two leaves
             left.keys.extend(right.keys)
+            left.children.extend(right.children)  # im not sure
             left.next_key = right.next_key
         else:
             # merge two internals
@@ -301,8 +321,9 @@ class BPlusTree:
         if node is not None:
             print(
                 f'{level} -> {node}')
-            for child in node.children:
-                self._print_tree(child, level + 1)
+            if not node.is_leaf:
+                for child in node.children:
+                    self._print_tree(child, level + 1)
 
     def print_leaf(self):
         print('print all data in tree')
@@ -312,25 +333,47 @@ class BPlusTree:
         self._print_leaf(node)
 
     def _print_leaf(self, node: Node):
-        while node.next_key:
-            print(f'{node}', end=' -> ')
+        while node is not None:
+            for i in range(len(node.keys)):
+                print(f'{node.keys[i]}, {node.children[i]}', end=' ')
             node = node.next_key
-        print(f'{node}')
+        print('')
 
 
 if __name__ == '__main__':
     tree = BPlusTree()
-    insert_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-    for i in insert_list:
-        tree.insert(i)
-    print('----- tree after insert ----')
+    guests = [
+        (1, 'A'),
+        (2, 'B'),
+        (3, 'C'),
+        (4, 'D'),
+        (5, 'E'),
+        (6, 'F'),
+        (7, 'G'),
+        (8, 'H'),
+        (9, 'I'),
+        (10, 'J'),
+        (11, 'K'),
+        (12, 'L'),
+        (13, 'M'),
+        (14, 'N'),
+        (15, 'O'),
+        (16, 'P'),
+        (17, 'Q'),
+        (18, 'R'),
+        (19, 'S'),
+        (20, 'T'),
+    ]
+
+    for guest in guests:
+        tree.insert(guest)
+
+    print('----- tree after insert with guest data ----')
     tree.print_tree()
     tree.print_leaf()
-    # delete_list = [14, 13, 3, 4, 2, 1]
-    delete_list = [13, 14, 15, 11, 12, 5, 6, 7, 9, 10, 8, 4]
-    for i in delete_list:
-        print(f'------ deleting {i} ------')
-        tree.delete(i)
-        print(f'----- tree after delete {i} ----')
-        tree.print_tree()
-        tree.print_leaf()
+
+    # Test deletion
+    tree.delete(2)
+    print('----- tree after delete 2 ----')
+    tree.print_tree()
+    tree.print_leaf()
