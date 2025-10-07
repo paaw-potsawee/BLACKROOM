@@ -1,10 +1,10 @@
-from typing import Optional
+from typing import Optional, Any
 
 
 class Node:
     def __init__(self, is_leaf: bool = True):
         self.__keys: list[int] = []
-        self.__children: list["Node"] = []
+        self.__children: list[Any] = []
         self.__next_key: Optional["Node"] = None
         self.__parent: Optional["Node"] = None
         self.__is_leaf: bool = is_leaf
@@ -15,17 +15,17 @@ class Node:
             for i in range(len(temp)):
                 if key < self.__keys[i]:
                     self.__keys.insert(i, key)
-                    if self.__is_leaf and val is not None:
+                    if self.__is_leaf:
                         self.__children.insert(i, val)
                     break
                 elif i + 1 == len(temp):
                     self.__keys.append(key)
-                    if self.__is_leaf and val is not None:
+                    if self.__is_leaf:
                         self.__children.append(val)
                     break
         else:
             self.__keys.append(key)
-            if self.__is_leaf and val is not None:
+            if self.__is_leaf:
                 self.__children.append(val)
 
     def __str__(self):

@@ -33,7 +33,7 @@ class TestBPlusTree(unittest.TestCase):
             (19, 'S'),
             (20, 'T'),
         ]
-        cls.tree = BPlusTree()
+        cls.tree = BPlusTree(order=8)
 
     def __is_valid_bplus_tree(self):
         self.__is_valid_leaf_key()
@@ -82,6 +82,12 @@ class TestBPlusTree(unittest.TestCase):
         for case in reversed(self.test_case):
             self.tree.delete(case[0])
             self.__is_valid_bplus_tree()
+
+        node = self.tree.root
+        self.assertTrue(
+            node.is_leaf, f"root node is not leaf after delete all data: {node}")
+        self.assertEqual(
+            len(node.keys), 0, f"root node key in not empty after delete all data: {node}")
 
 
 if __name__ == '__main__':
