@@ -1,8 +1,10 @@
 from hotel import Hotel
 from tracking import profile
+import os
+import sys
 
 
-def print_help():
+def print_blackroom():
     print("""
 ██████╗  ██╗       █████╗   ██████╗ ██╗  ██╗ ██████╗   ██████╗   ██████╗  ███╗   ███╗
 ██╔══██╗ ██║      ██╔══██╗ ██╔════╝ ██║ ██╔╝ ██╔══██╗ ██╔═══██╗ ██╔═══██╗ ████╗ ████║
@@ -11,19 +13,40 @@ def print_help():
 ██████╔╝ ███████╗ ██║  ██║ ╚██████╗ ██║  ██╗ ██║  ██║ ╚██████╔╝ ╚██████╔╝ ██║ ╚═╝ ██║
 ╚═════╝  ╚══════╝ ╚═╝  ╚═╝  ╚═════╝ ╚═╝  ╚═╝ ╚═╝  ╚═╝  ╚═════╝   ╚═════╝  ╚═╝     ╚═╝
           """)
+
+
+def print_help():
     print("Commands:")
     print("  q                    - Quit the program")
     print("  h                    - Help")
     print("  p                    - Print all guest data")
-    print("  s <key> | -e         - Search for a guest by key (room number) or -e for empty room")
+    print("  s <key>              - Search for a guest by key (room number)")
     print("  r <key>              - Remove a guest by key (room number)")
-    print("  i -c | -m            - Insert guest, -m for manual -c for select channel")
+    print("  i                    - Insert guest")
     print("--------------------------")
+
+
+def clear_screen():
+    try:
+        os.system('cls' if os.name == 'nt' else 'clear')
+    except Exception:
+        sys.stdout.write('\033[2J\033[H')
+        sys.stdout.flush()
 
 
 def main():
 
     hotel = Hotel()
+    clear_screen()
+    print_blackroom()
+    try:
+        initial_number = int(input("Enter initialize amount: "))
+    except ValueError as e:
+        print('number please !!!!')
+        return
+    hotel.walk_in(initial_number)
+    clear_screen()
+    print_blackroom()
     print_help()
     while True:
         try:
@@ -35,6 +58,7 @@ def main():
             command = parts[0].lower()
 
             if command == 'q':
+                clear_screen()
                 print('Goodbye!')
                 break
 
@@ -43,6 +67,8 @@ def main():
 
             elif command == 'p':
                 if len(parts) == 1:
+                    clear_screen()
+                    print_blackroom()
                     print("--- Current Guests ---")
                     hotel.print_data()
                     print("----------------------")
@@ -52,22 +78,13 @@ def main():
             # searching
             elif command == 's':
                 if len(parts) == 2:
-                    if parts[1] == '-e':
-                        print('Searching for all empty room')
-                        empty_room = hotel.search_empty_room()
-                        if empty_room:
-                            print(
-                                f"List of empty rooms in hotel: {empty_room}")
-                        else:
-                            print("No emptty room")
+                    key = int(parts[1])
+                    print(f"Searching for guest with key: {key}")
+                    guest = hotel.search(key)
+                    if guest:
+                        print(f"Found: {guest}")
                     else:
-                        key = int(parts[1])
-                        print(f"Searching for guest with key: {key}")
-                        guest = hotel.search(key)
-                        if guest:
-                            print(f"Found: {guest}")
-                        else:
-                            print(f"Guest with key {key} not found.")
+                        print(f"Guest with key {key} not found.")
                 else:
                     print("Usage: s <key> | -e")
 
@@ -83,27 +100,30 @@ def main():
 
             # insertion
             elif command == 'i':
-                if len(parts) == 2:
-                    opt = parts[1]
-                    # i -m manual insert at key
-                    if opt == '-m':
-                        pass
-                    # i -c insert by channel e.g., walk(1) bus(2) boat(3) plane(4)
-                    elif opt == '-c':
-                        channel = int(input("Enter insert channel: "))
-                        match channel:
-                            case 1:
-                                pass
-                            case 2:
-                                pass
-                            case 3:
-                                pass
-                            case 4:
-                                pass
-                            case _:
-                                print('Invalid channel')
-                else:
-                    print("Usage: i -c | -m")
+                clear_screen()
+                print_blackroom()
+                print("  m       - manual insert")
+                print("  c       - select channel to insert")
+                opt = input("Enter insertion method: ")
+                # i m manual insert at key
+                if opt == 'm':
+                    pass
+                # i c insert by channel e.g., walk(1) bus(2) boat(3) plane(4)
+                elif opt == 'c':
+                    channel = int(input("Enter insert channel: "))
+                    match channel:
+                        case 1:
+                            total_number = int(
+                                input("Enter guest number: "))
+                            hotel.walk_in(total_number)
+                        case 2:
+                            pass
+                        case 3:
+                            pass
+                        case 4:
+                            pass
+                        case _:
+                            print('Invalid channel')
 
             else:
                 print(
