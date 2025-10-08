@@ -29,7 +29,6 @@ class Node:
                 self.__children.append(val)
 
     def __str__(self):
-        # return f"{" ".join(list(map(str, (self.keys))))}"
         return f'{self.__keys}'
 
     @property
@@ -95,6 +94,9 @@ class BPlusTree:
     def _insert(self, node: Node, key, val=None):
         # search for leaf node
         leaf_node = self.search_leaf(node, key)
+        if key in leaf_node.keys:
+            raise ValueError(
+                f'Insertion into existing room ### this is for debug calculate guest room only {key}')
         leaf_node.insert(key, val)
 
         if len(leaf_node.keys) > self.__order - 1:
@@ -305,6 +307,27 @@ class BPlusTree:
             node = node.children[0]
         return node.keys[0]
 
+    def process_room_number(self, cal_func):
+        node = self.__root
+        self.__process_room_number(node, cal_func)
+
+    def __process_room_number(self, node: Node, cal_func):
+        if node is None:
+            return
+
+        # update key value
+        for i in range(len(node.keys)):
+            node.keys[i] = cal_func(node.keys[i])
+
+        if node.is_leaf:
+            # leaf node update value in children
+            for i in range(len(node.keys)):
+                node.children[i].current_room_number = node.keys[i]
+            return
+
+        for child in node.children:
+            self.__process_room_number(child, cal_func)
+
     def search_leaf(self, node: Node, val):
         while not node.is_leaf:
             i = 0
@@ -312,6 +335,20 @@ class BPlusTree:
                 i += 1
             node = node.children[i]
         return node
+
+    def get_leftmost_node(self):
+        node = self.__root
+        while not node.is_leaf:
+            node = node.children[0]
+
+        return node
+
+    def search(self, val: int):
+        leaf = self.search_leaf(self.__root, val)
+        if val in leaf.keys:
+            return leaf.children[leaf.keys.index(val)]
+
+        return -1
 
     def print_tree(self):
         print('print entire tree')
@@ -335,7 +372,7 @@ class BPlusTree:
     def _print_leaf(self, node: Node):
         while node is not None:
             for i in range(len(node.keys)):
-                print(f'{node.keys[i]}, {node.children[i]}', end=' ')
+                print(f'{node.keys[i]}: {node.children[i]}', end='\n')
             node = node.next_key
         print('')
 
