@@ -44,7 +44,9 @@ def main():
     except ValueError as e:
         print('number please !!!!')
         return
-    hotel.walk_in(initial_number)
+    print(f'initializing {initial_number} rooms')
+    hotel.walk_in(initial_number, profile_msg="initialize")
+    input('Enter to continue : ')
     clear_screen()
     print_blackroom()
     print_help()
@@ -58,9 +60,14 @@ def main():
             command = parts[0].lower()
 
             if command == 'q':
-                clear_screen()
-                print('Goodbye!')
-                break
+                confirm = ''
+                while confirm != 'y' and confirm != 'n':
+                    confirm = input("Are you sure to quit [Y/N]: ").lower()
+
+                if confirm == 'y':
+                    clear_screen()
+                    print('Goodbye!')
+                    break
 
             elif command == 'h':
                 print_help()
@@ -80,21 +87,16 @@ def main():
                 if len(parts) == 2:
                     key = int(parts[1])
                     print(f"Searching for guest with key: {key}")
-                    guest = hotel.search(key)
-                    if guest:
-                        print(f"Found: {guest}")
-                    else:
-                        print(f"Guest with key {key} not found.")
+                    print(hotel.search(key))
                 else:
-                    print("Usage: s <key> | -e")
+                    print("Usage: s <key>")
 
             # deletion
             elif command == 'r':
                 if len(parts) == 2:
                     key = int(parts[1])
                     print(f"Removing guest with key: {key}")
-                    hotel.remove(key)
-                    print(f"Guest with key {key} removed.")
+                    print(hotel.remove(key))
                 else:
                     print("Usage: r <key>")
 
@@ -102,28 +104,48 @@ def main():
             elif command == 'i':
                 clear_screen()
                 print_blackroom()
+                print("Command Option")
                 print("  m       - manual insert")
                 print("  c       - select channel to insert")
                 opt = input("Enter insertion method: ")
                 # i m manual insert at key
                 if opt == 'm':
                     pass
-                # i c insert by channel e.g., walk(1) bus(2) boat(3) plane(4)
                 elif opt == 'c':
+                    print("Command Option")
+                    print("  1       - walk in")
+                    print("  2       - walk in (infinite)")
+                    print("  3       - bus")
+                    print("  4       - bus (infinite)")
                     channel = int(input("Enter insert channel: "))
                     match channel:
                         case 1:
+                            # insert n guests
                             total_number = int(
                                 input("Enter guest number: "))
                             hotel.walk_in(total_number)
                         case 2:
-                            pass
+                            # insert infinite guest
+                            total_number = int(
+                                input("Enter guest number (infinite): "))
+                            hotel.bus(1, total_number)
                         case 3:
-                            pass
+                            # insert n buses
+                            guest_per_bus = int(
+                                input("Enter guest number per bus (infinite): "))
+                            total_bus = int(input("Enter total bus: "))
+                            hotel.bus(total_bus, guest_per_bus)
                         case 4:
-                            pass
+                            # insert infinite bus
+                            guests = int(
+                                input("Enter guest number per bus (infinite): "))
+                            buses = int(
+                                input("Enter total bus (infinite): "))
+                            hotel.ship(buses, guests)
                         case _:
                             print('Invalid channel')
+                else:
+                    print("invalid option (c | m)")
 
             else:
                 print(

@@ -27,7 +27,6 @@ class Hotel:
     def __init__(self):
         self.__tree = BPlusTree()
         self.__guest_order = 0
-        self.__max_guest_room = 0
 
     """
         1. insert guest by channel and total amount
@@ -56,6 +55,7 @@ class Hotel:
         self.__guest_order += 1
 
     # bus (conceptually infinity guests on n bus)
+    @profile
     def bus(self, total_bus, guest_per_bus):
         self.__tree.process_room_number(lambda x: x * (total_bus + 1))
         for bus_no in range(1, total_bus + 1):
@@ -66,10 +66,11 @@ class Hotel:
 
         self.__guest_order += 1
 
-    def ship(self, guest_per_ship, guest_per_bus):
+    @profile
+    def ship(self, bus_per_ship, guest_per_bus):
         self.__tree.process_room_number(lambda x: int(((x - 1) * (x)) / 2 + x))
         for bus in range(1, guest_per_bus + 1):
-            for i in range(1, guest_per_ship + 1):
+            for i in range(1, bus_per_ship + 1):
                 guest_no = int(((bus + i - 1) * (bus + i)) / 2 + i)
                 guest = Guest(guest_no, 3, self.__guest_order)
                 self.__tree.insert((guest_no, guest))
@@ -79,11 +80,20 @@ class Hotel:
     def print_data(self):
         self.__tree.print_leaf()
 
+    @profile
     def search(self, key):
-        return self.__tree.search(key)
+        result = self.__tree.search(key)
+        if result == -1:
+            return f"room {key} is empty"
 
+        return f"found: {result}"
+
+    @profile
     def remove(self, key):
-        self.__tree.delete(key)
+        removed = self.__tree.delete(key)
+        if removed == -1:
+            return f"room {key} is not occupied"
+        return f"room {key} removed"
 
     def get_file(self):
         pass
