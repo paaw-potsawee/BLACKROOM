@@ -10,19 +10,24 @@ class Node:
         self.__is_leaf: bool = is_leaf
 
     def insert(self, key, val=None):
-        if len(self.__keys) > 0:
-            temp = self.__keys
-            for i in range(len(temp)):
-                if key < self.__keys[i]:
-                    self.__keys.insert(i, key)
-                    if self.__is_leaf:
-                        self.__children.insert(i, val)
-                    break
-                elif i + 1 == len(temp):
-                    self.__keys.append(key)
-                    if self.__is_leaf:
-                        self.__children.append(val)
-                    break
+        n = len(self.__keys)
+        if n > 0:
+            right = n
+            left = 0
+            while left < right:
+                mid = left + (right - left) // 2
+                if self.__keys[mid] < key:
+                    left = mid + 1
+                else:
+                    right = mid
+            if left + 1 == n:
+                self.__keys.append(key)
+                if self.__is_leaf:
+                    self.__children.append(val)
+                return
+            self.__keys.insert(left, key)
+            if self.__is_leaf:
+                self.__children.insert(left, val)
         else:
             self.__keys.append(key)
             if self.__is_leaf:
@@ -330,10 +335,22 @@ class BPlusTree:
 
     def search_leaf(self, node: Node, val):
         while not node.is_leaf:
-            i = 0
-            while i < len(node.keys) and val >= node.keys[i]:
-                i += 1
-            node = node.children[i]
+            if val < node.keys[0]:
+                node = node.children[0]
+                continue
+            left = 0
+            right = len(node.keys) - 1
+            while left < right:
+                mid = left + (right - left) // 2
+                if node.keys[mid] > val:
+                    right = mid
+                else:
+                    left = mid + 1
+
+            if val >= node.keys[left]:
+                node = node.children[left + 1]
+            else:
+                node = node.children[left]
         return node
 
     def get_leftmost_node(self):
@@ -387,30 +404,31 @@ if __name__ == '__main__':
         (5, 'E'),
         (6, 'F'),
         (7, 'G'),
-        (8, 'H'),
-        (9, 'I'),
-        (10, 'J'),
-        (11, 'K'),
-        (12, 'L'),
-        (13, 'M'),
-        (14, 'N'),
-        (15, 'O'),
-        (16, 'P'),
-        (17, 'Q'),
-        (18, 'R'),
-        (19, 'S'),
-        (20, 'T'),
+        # (8, 'H'),
+        # (9, 'I'),
+        # (10, 'J'),
+        # (11, 'K'),
+        # (12, 'L'),
+        # (13, 'M'),
+        # (14, 'N'),
+        # (15, 'O'),
+        # (16, 'P'),
+        # (17, 'Q'),
+        # (18, 'R'),
+        # (19, 'S'),
+        # (20, 'T'),
     ]
 
     for guest in guests:
         tree.insert(guest)
+        tree.print_leaf()
 
     print('----- tree after insert with guest data ----')
     tree.print_tree()
     tree.print_leaf()
 
     # Test deletion
-    tree.delete(2)
-    print('----- tree after delete 2 ----')
-    tree.print_tree()
-    tree.print_leaf()
+    # tree.delete(2)
+    # print('----- tree after delete 2 ----')
+    # tree.print_tree()
+    # tree.print_leaf()

@@ -1,5 +1,6 @@
 from BPlusTree import BPlusTree
 from tracking import profile
+from tqdm import tqdm
 
 
 class Guest:
@@ -25,7 +26,7 @@ class Guest:
 
 class Hotel:
     def __init__(self):
-        self.__tree = BPlusTree()
+        self.__tree = BPlusTree(order=64)
         self.__guest_order = 0
 
     """
@@ -48,7 +49,7 @@ class Hotel:
     def walk_in(self, n):
         self.__tree.process_room_number(lambda x: x + n)
         # insert new guests
-        for i in range(n):
+        for i in tqdm(range(n)):
             guest = Guest(i, 1, self.__guest_order)
             self.__tree.insert((i, guest))
 
@@ -58,7 +59,7 @@ class Hotel:
     @profile
     def bus(self, total_bus, guest_per_bus):
         self.__tree.process_room_number(lambda x: x * (total_bus + 1))
-        for bus_no in range(1, total_bus + 1):
+        for bus_no in tqdm(range(1, total_bus + 1)):
             for i in range(guest_per_bus):
                 guest_no = (i * (total_bus + 1) + bus_no)
                 guest = Guest(guest_no, 2, self.__guest_order)
@@ -69,7 +70,7 @@ class Hotel:
     @profile
     def ship(self, bus_per_ship, guest_per_bus):
         self.__tree.process_room_number(lambda x: int(((x - 1) * (x)) / 2 + x))
-        for bus in range(1, guest_per_bus + 1):
+        for bus in tqdm(range(1, guest_per_bus + 1)):
             for i in range(1, bus_per_ship + 1):
                 guest_no = int(((bus + i - 1) * (bus + i)) / 2 + i)
                 guest = Guest(guest_no, 3, self.__guest_order)

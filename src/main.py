@@ -1,5 +1,4 @@
 from hotel import Hotel
-from tracking import profile
 import os
 import sys
 
