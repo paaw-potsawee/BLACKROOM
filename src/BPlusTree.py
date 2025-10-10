@@ -174,14 +174,14 @@ class BPlusTree:
 
     def delete(self, val):
         leaf_node = self.search_leaf(self.__root, val)
-        if val not in leaf_node.keys:
+        try:
+            idx = leaf_node.keys.index(val)
+        except ValueError:
             print('not found')
             return -1
 
-        idx = leaf_node.keys.index(val)
         leaf_node.keys.remove(val)
-
-        if leaf_node.is_leaf and len(leaf_node.children) > idx:
+        if leaf_node.is_leaf:
             leaf_node.children.pop(idx)
 
         parent = leaf_node.parent
@@ -233,9 +233,13 @@ class BPlusTree:
         if left is None or right is None:
             return
         if left.is_leaf and right.is_leaf:
+            # ensure consistencies while develop
+            assert len(left.keys) == len(left.children)
+            assert len(right.keys) == len(right.children)
             # merge two leaves
             left.keys.extend(right.keys)
-            left.children.extend(right.children)  # im not sure
+            left.children.extend(right.children)
+
             left.next_key = right.next_key
         else:
             # merge two internals
@@ -301,15 +305,8 @@ class BPlusTree:
         if parent is None:
             return
 
-        idx = parent.children.index(node)
-        if idx > 0:
-            # non‐first child: update the separator to the left
-            parent.keys[idx - 1] = self.__leftmost_key(node)
-        else:
-            # first child changed: update the first separator from child[1]
-            if len(parent.children) > 1:
-                parent.keys[0] = self.__leftmost_key(parent.children[1])
-
+        for i in range(len(parent.keys)):
+            parent.keys[i] = self.__leftmost_key(parent.children[i + 1])
         # recurse upward
         self.__update_separator(parent)
 
@@ -319,36 +316,29 @@ class BPlusTree:
         return node.keys[0]
 
     def process_room_number(self, cal_func):
-        node = self.__root
-        self.__process_room_number(node, cal_func)
+        if self.__root is None or len(self.__root.keys) == 0:
+            return
+        stack = [self.__root]
+        while stack:
+            node = stack.pop()
+            for i in range(len(node.keys)):
+                node.keys[i] = cal_func(node.keys[i])
+            if node.is_leaf:
+                for i in range(len(node.keys)):
+                    node.children[i].current_room_number = node.keys[i]
+            else:
+                stack.extend(node.children)
 
     def shift_room_number(self, cal_func, key):
         node = self.__root
         stack = []
 
         while not node.is_leaf:
-            if key < node.keys[0]:
-                stack.append(node.keys)
-                node = node.children[0]
-                continue
-            left = 0
-            right = len(node.keys) - 1
-            while left < right:
-                mid = left + (right - left) // 2
-                if key > node.keys[mid]:
-                    left = mid + 1
-                else:
-                    right = mid
+            child_idx = self.__binary_search(node.keys, key)
+            stack.append((node, child_idx))
+            node = node.children[child_idx]
 
-            if key >= node.keys[left]:
-                stack.append(node.keys[left + 1:])
-                node = node.children[left + 1]
-            else:
-                stack.append(node.keys[left:])
-                node = node.children[left]
-            node = node.children[left]
-
-        # update key for leaf node remaining
+        # perform shift in leaf node
         left = 0
         right = len(node.keys) - 1
         while left < right:
@@ -357,60 +347,42 @@ class BPlusTree:
                 left = mid + 1
             else:
                 right = mid
+
+        if len(node.keys) == 0:
+            return
         # if room is empty will not shift (ideal should always be shifted)
-        if key != node.keys[left]:
-            print(f'test {key}')
+        if left >= len(node.keys) or key != node.keys[left]:
             return
 
-        for i in range(left, len(node.keys)):
+        start = left if left < len(node.keys) else len(node.keys)
+        for i in range(start, len(node.keys)):
             node.keys[i] = cal_func(node.keys[i])
-            node.children[i].current_room_number = cal_func(
-                node.children[i].current_room_number)
+            node.children[i].current_room_number = node.keys[i]
+
+        self.__update_separator(node)
         # shift room after number by 1
         while stack:
-            pointer = stack.pop()
+            parent, child_idx = stack.pop()
             # update every child of that node
-            for i in range(len(pointer)):
-                self.__process_room_number(
-                    node.children[pointer[i + 1]], cal_func)
-                pointer[i] = cal_func(pointer[i])
-
-    def __process_room_number(self, node: Node, cal_func):
-        if node is None:
-            return
-
-        # update key value
-        for i in range(len(node.keys)):
-            node.keys[i] = cal_func(node.keys[i])
-
-        if node.is_leaf:
-            # leaf node update value in children
-            for i in range(len(node.keys)):
-                node.children[i].current_room_number = node.keys[i]
-            return
-
-        for child in node.children:
-            self.__process_room_number(child, cal_func)
+            for i in range(child_idx, len(parent.keys)):
+                parent.keys[i] = cal_func(parent.keys[i])
 
     def search_leaf(self, node: Node, val):
         while not node.is_leaf:
-            if val < node.keys[0]:
-                node = node.children[0]
-                continue
-            left = 0
-            right = len(node.keys) - 1
-            while left < right:
-                mid = left + (right - left) // 2
-                if node.keys[mid] > val:
-                    right = mid
-                else:
-                    left = mid + 1
-
-            if val >= node.keys[left]:
-                node = node.children[left + 1]
-            else:
-                node = node.children[left]
+            child_idx = self.__binary_search(node.keys, val)
+            node = node.children[child_idx]
         return node
+
+    def __binary_search(self, keys: array, val: int) -> int:
+        left, right = 0, len(keys)
+        while left < right:
+            mid = left + (right - left) // 2
+            if keys[mid] <= val:
+                left = mid + 1
+            else:
+                right = mid
+
+        return left
 
     def get_leftmost_node(self):
         node = self.__root
@@ -486,13 +458,20 @@ if __name__ == '__main__':
     tree.print_tree()
     tree.print_leaf()
 
-    tree.shift_room_number(lambda x: x + 1, 13)
-    tree.insert((13, Guest(13, 1, 1)))
-    tree.shift_room_number(lambda x: x + 1, 12)
-    tree.insert((12, Guest(12, 1, 1)))
-    print('----- tree after shift and insert ----')
+    print('----- tree after delete and insert with guest data ----')
+    tree.delete(9)
+    tree.shift_room_number(lambda x: x + 1, 9)
+    tree.insert((9, Guest(9, 1, 1)))
     tree.print_tree()
     tree.print_leaf()
+
+    # tree.shift_room_number(lambda x: x + 1, 13)
+    # tree.insert((13, Guest(13, 1, 1)))
+    # tree.shift_room_number(lambda x: x + 1, 12)
+    # tree.insert((12, Guest(12, 1, 1)))
+    # print('----- tree after shift and insert ----')
+    # tree.print_tree()
+    # tree.print_leaf()
 
     # Test deletion
     # tree.delete(2)
