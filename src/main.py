@@ -45,7 +45,8 @@ def main():
         return
     print(f'initializing {initial_number} rooms')
     hotel.walk_in(initial_number, profile_msg="initialize")
-    input('Enter to continue : ')
+    input(
+        f"Initialize hotel {initial_number} room(s) finish: enter to continue ")
     clear_screen()
     print_blackroom()
     print_help()
@@ -109,7 +110,8 @@ def main():
                 opt = input("Enter insertion method: ")
                 # i m manual insert at key
                 if opt == 'm':
-                    pass
+                    n = int(input("Enter room number: "))
+                    hotel.manual_insert(n)
                 elif opt == 'c':
                     print("Command Option")
                     print("  1       - walk in")
