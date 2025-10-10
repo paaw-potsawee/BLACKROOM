@@ -40,7 +40,7 @@ class TestBPlusTree(unittest.TestCase):
         self.__is_valid_node(self.tree.root, float('-inf'), float('inf'))
 
     def __is_valid_node(self, node, min_val, max_val):
-        self.assertEqual(node.keys, sorted(node.keys),
+        self.assertEqual(list(node.keys), sorted(node.keys),
                          f"Node keys not sored: {node.keys}")
 
         if not node.is_leaf:

@@ -1,9 +1,10 @@
 from typing import Optional, Any
+from array import array
 
 
 class Node:
     def __init__(self, is_leaf: bool = True):
-        self.__keys: list[int] = []
+        self.__keys: array = array('i')
         self.__children: list[Any] = []
         self.__next_key: Optional["Node"] = None
         self.__parent: Optional["Node"] = None
@@ -12,19 +13,24 @@ class Node:
     def insert(self, key, val=None):
         n = len(self.__keys)
         if n > 0:
-            right = n
+            if key < self.__keys[0]:
+                self.__keys.insert(0, key)
+                if self.__is_leaf:
+                    self.__children.insert(0, val)
+                return
+            right = n - 1
             left = 0
+            if self.__keys[right] < key:
+                self.__keys.append(key)
+                if self.__is_leaf:
+                    self.__children.append(val)
+                return
             while left < right:
                 mid = left + (right - left) // 2
                 if self.__keys[mid] < key:
                     left = mid + 1
                 else:
                     right = mid
-            if left + 1 == n:
-                self.__keys.append(key)
-                if self.__is_leaf:
-                    self.__children.append(val)
-                return
             self.__keys.insert(left, key)
             if self.__is_leaf:
                 self.__children.insert(left, val)
@@ -34,7 +40,7 @@ class Node:
                 self.__children.append(val)
 
     def __str__(self):
-        return f'{self.__keys}'
+        return f'{list(self.__keys)}'
 
     @property
     def children(self): return self.__children
@@ -42,9 +48,9 @@ class Node:
     def children(self, data: list): self.__children = data
 
     @property
-    def keys(self): return self.__keys
+    def keys(self) -> array: return self.__keys
     @keys.setter
-    def keys(self, data: list): self.__keys = data
+    def keys(self, data: list): self.__keys = array('i', data)
 
     @property
     def parent(self): return self.__parent
@@ -107,8 +113,8 @@ class BPlusTree:
         if len(leaf_node.keys) > self.__order - 1:
             mid = len(leaf_node.keys) // 2
             new_leaf = Node(is_leaf=True)
-            new_leaf.keys = leaf_node.keys[mid:]
-            leaf_node.keys = leaf_node.keys[:mid]
+            new_leaf.keys = list(leaf_node.keys[mid:])
+            leaf_node.keys = list(leaf_node.keys[:mid])
             # split guest data
             if leaf_node.is_leaf and len(leaf_node.children) > 0:
                 new_leaf.children = leaf_node.children[mid:]
@@ -146,13 +152,13 @@ class BPlusTree:
 
             # create new internal node
             new_node = Node(is_leaf=False)
-            new_node.keys = parent.keys[mid + 1:]
+            new_node.keys = list(parent.keys[mid + 1:])
             new_node.children = parent.children[mid + 1:]
             # point child to new parent
             for child in new_node.children:
                 child.parent = new_node
 
-            parent.keys = parent.keys[:mid]
+            parent.keys = list(parent.keys[:mid])
             parent.children = parent.children[:mid + 1]
 
             if parent.parent is None:
@@ -316,6 +322,59 @@ class BPlusTree:
         node = self.__root
         self.__process_room_number(node, cal_func)
 
+    def shift_room_number(self, cal_func, key):
+        node = self.__root
+        stack = []
+
+        while not node.is_leaf:
+            if key < node.keys[0]:
+                stack.append(node.keys)
+                node = node.children[0]
+                continue
+            left = 0
+            right = len(node.keys) - 1
+            while left < right:
+                mid = left + (right - left) // 2
+                if key > node.keys[mid]:
+                    left = mid + 1
+                else:
+                    right = mid
+
+            if key >= node.keys[left]:
+                stack.append(node.keys[left + 1:])
+                node = node.children[left + 1]
+            else:
+                stack.append(node.keys[left:])
+                node = node.children[left]
+            node = node.children[left]
+
+        # update key for leaf node remaining
+        left = 0
+        right = len(node.keys) - 1
+        while left < right:
+            mid = left + (right - left) // 2
+            if key > node.keys[mid]:
+                left = mid + 1
+            else:
+                right = mid
+        # if room is empty will not shift (ideal should always be shifted)
+        if key != node.keys[left]:
+            print(f'test {key}')
+            return
+
+        for i in range(left, len(node.keys)):
+            node.keys[i] = cal_func(node.keys[i])
+            node.children[i].current_room_number = cal_func(
+                node.children[i].current_room_number)
+        # shift room after number by 1
+        while stack:
+            pointer = stack.pop()
+            # update every child of that node
+            for i in range(len(pointer)):
+                self.__process_room_number(
+                    node.children[pointer[i + 1]], cal_func)
+                pointer[i] = cal_func(pointer[i])
+
     def __process_room_number(self, node: Node, cal_func):
         if node is None:
             return
@@ -386,7 +445,7 @@ class BPlusTree:
             node = node.children[0]
         self._print_leaf(node)
 
-    def _print_leaf(self, node: Node):
+    def _print_leaf(self, node: Optional[Node]):
         while node is not None:
             for i in range(len(node.keys)):
                 print(f'{node.keys[i]}: {node.children[i]}', end='\n')
@@ -395,35 +454,43 @@ class BPlusTree:
 
 
 if __name__ == '__main__':
+    class Guest:
+        def __init__(self, current_room_number: int, channel: int, arrived_order: int):
+            self.__current_room_number = current_room_number
+            self.__channel = channel
+            self.__arrived_order = arrived_order
+
+        @property
+        def current_room_number(self): return self.__current_room_number
+        @current_room_number.setter
+        def current_room_number(self, n): self.__current_room_number = n
+
+        @property
+        def channel(self): return self.__channel
+
+        @property
+        def arrived_order(self): return self.__arrived_order
+
+        def __repr__(self) -> str:
+            return f"Guest(Room: {self.__current_room_number}, Channel: {self.channel}, Arrived: {self.__arrived_order})"
     tree = BPlusTree()
-    guests = [
-        (1, 'A'),
-        (2, 'B'),
-        (3, 'C'),
-        (4, 'D'),
-        (5, 'E'),
-        (6, 'F'),
-        (7, 'G'),
-        # (8, 'H'),
-        # (9, 'I'),
-        # (10, 'J'),
-        # (11, 'K'),
-        # (12, 'L'),
-        # (13, 'M'),
-        # (14, 'N'),
-        # (15, 'O'),
-        # (16, 'P'),
-        # (17, 'Q'),
-        # (18, 'R'),
-        # (19, 'S'),
-        # (20, 'T'),
-    ]
+    num = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    guests = []
+    for i in num:
+        guests.append((i, Guest(i, 1, 0)))
 
     for guest in guests:
         tree.insert(guest)
-        tree.print_leaf()
 
     print('----- tree after insert with guest data ----')
+    tree.print_tree()
+    tree.print_leaf()
+
+    tree.shift_room_number(lambda x: x + 1, 13)
+    tree.insert((13, Guest(13, 1, 1)))
+    tree.shift_room_number(lambda x: x + 1, 12)
+    tree.insert((12, Guest(12, 1, 1)))
+    print('----- tree after shift and insert ----')
     tree.print_tree()
     tree.print_leaf()
 

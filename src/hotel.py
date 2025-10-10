@@ -78,6 +78,13 @@ class Hotel:
 
         self.__guest_order += 1
 
+    @profile
+    def manual_insert(self, key):
+        self.__tree.shift_room_number(lambda x: x + 1, key)
+        guest = Guest(key, 1, self.__guest_order)
+        self.__tree.insert((key, guest))
+        self.__guest_order += 1
+
     def print_data(self):
         self.__tree.print_leaf()
 
