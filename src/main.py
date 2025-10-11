@@ -22,6 +22,7 @@ def print_help():
     print("  s <key>              - Search for a guest by key (room number)")
     print("  r <key>              - Remove a guest by key (room number)")
     print("  i                    - Insert guest")
+    print("  w                    - write all guests data to file")
     print("--------------------------")
 
 
@@ -81,6 +82,14 @@ def main():
                     print("----------------------")
                 else:
                     print("Usage: p")
+
+            # write file
+            elif command == 'w':
+                if len(parts) == 1:
+                    print("--- writing file ---")
+                    hotel.get_file()
+                else:
+                    print("Usage: w")
 
             # searching
             elif command == 's':
