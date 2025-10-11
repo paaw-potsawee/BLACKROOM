@@ -411,7 +411,6 @@ class BPlusTree:
                     self._print_tree(child, level + 1)
 
     def print_leaf(self):
-        print('print all data in tree')
         node = self.__root
         while not node.is_leaf:
             node = node.children[0]
@@ -420,7 +419,7 @@ class BPlusTree:
     def _print_leaf(self, node: Optional[Node]):
         while node is not None:
             for i in range(len(node.keys)):
-                print(f'{node.keys[i]}: {node.children[i]}', end='\n')
+                print(f'{node.keys[i]: >9d}: {node.children[i]}', end='\n')
             node = node.next_key
         print('')
 

@@ -6,8 +6,7 @@ from tqdm import tqdm
 class Guest:
     def __init__(self, current_room_number: int, channel: int, arrived_order: int):
         self.__current_room_number = current_room_number
-        self.__channel = channel
-        self.__arrived_order = arrived_order
+        self.__id = self.__get_id(channel, arrived_order)
 
     @property
     def current_room_number(self): return self.__current_room_number
@@ -15,13 +14,16 @@ class Guest:
     def current_room_number(self, n): self.__current_room_number = n
 
     @property
-    def channel(self): return self.__channel
+    def id(self): return self.__id
 
-    @property
-    def arrived_order(self): return self.__arrived_order
+    @staticmethod
+    def __get_id(channel, arrived_order):
+        ch = {1: 'WLK', 2: 'BUS', 3: 'SHP'}.get(channel, f'CH{channel}')
+        return f"{ch}-{arrived_order:05d}"
 
     def __repr__(self) -> str:
-        return f"Guest(Room: {self.__current_room_number}, Channel: {self.channel}, Arrived: {self.__arrived_order})"
+        # print format method-arrived_order-current_room_number
+        return f'{self.__id}-{self.__current_room_number:09d}'
 
 
 class Hotel:
