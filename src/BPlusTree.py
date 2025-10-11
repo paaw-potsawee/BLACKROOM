@@ -2,6 +2,7 @@ from typing import Optional, Any
 from array import array
 import csv
 
+
 class Node:
     __slots__ = ('__keys', '__children', '__next_key', '__parent', '__is_leaf')
 
@@ -447,12 +448,12 @@ class BPlusTree:
                 print(f'{node.keys[i]: >9d}: {node.children[i]}', end='\n')
             node = node.next_key
         print('')
-        
-    def export_to_csv(self,filename : str = "hotel.csv"):
+
+    def export_to_csv(self, filename: str = "hotel.csv"):
         node = self.__root
         while not node.is_leaf:
             node = node.children[0]
-            
+
         with open(filename, "w", newline="") as file:
             writer = csv.writer(file)
             writer.writerow(["Room Number", "Guest Info"])
