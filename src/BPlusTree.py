@@ -1,6 +1,7 @@
 from typing import Optional, Any
 from array import array
 import csv
+from math import isqrt
 
 
 class Node:
@@ -97,7 +98,8 @@ class Node:
 
 
 class BPlusTree:
-    __slots__ = ('__order', '__min_leaf_keys', '__min_internal_keys', '__root')
+    __slots__ = ('__order', '__min_leaf_keys', '__min_internal_keys',
+                 '__root', '__g_offset', '__g_scale')
 
     def __init__(self, order: int = 4):
         if order < 3:
@@ -107,6 +109,8 @@ class BPlusTree:
         self.__min_leaf_keys: int = self.__order // 2
         self.__min_internal_keys: int = (self.__order - 1) // 2
         self.__root: Node = Node(is_leaf=True)
+        self.__g_scale: int = 1
+        self.__g_offset: int = 0
 
     @property
     def root(self): return self.__root
@@ -117,10 +121,21 @@ class BPlusTree:
     def _insert(self, node: Node, key, val=None):
         # search for leaf node
         leaf_node = self.search_leaf(node, key)
-        if key in leaf_node.keys:
-            raise ValueError(
-                f'Insertion into existing room ### this is for debug calculate guest room only {key}')
-        leaf_node.insert(key, val)
+
+        phy_key = self.__physical_exact_key(key)
+        if phy_key is None:
+            self.__materialize()
+            leaf_node = self.search_leaf(self.__root, key)
+            phy_key = key
+
+        pos = self.__binary_search(leaf_node.keys, key)
+        idx = pos - 1
+        if 0 <= idx < len(leaf_node.keys) and phy_key == leaf_node.keys[idx]:
+            print(f'Guest exists in room {key}. Guest will be replaced')
+            leaf_node.children[idx] = val
+            return
+
+        leaf_node.insert(phy_key, val)
 
         if len(leaf_node.keys) > self.__order - 1:
             mid = len(leaf_node.keys) // 2
@@ -187,13 +202,16 @@ class BPlusTree:
                 self._insert_separator(parent.parent, promoted_val, new_node)
 
     def delete(self, val):
+        phy_key = self.__physical_exact_key(val)
+        if phy_key is None:
+            return -1
         leaf_node = self.search_leaf(self.__root, val)
         try:
-            idx = leaf_node.keys.index(val)
+            idx = leaf_node.keys.index(phy_key)
         except ValueError:
             return -1
 
-        leaf_node.keys.remove(val)
+        leaf_node.keys.remove(phy_key)
         if leaf_node.is_leaf:
             leaf_node.children.pop(idx)
 
@@ -342,56 +360,18 @@ class BPlusTree:
         return node.keys[0]
 
     def process_room_number(self, cal_func):
-        if self.__root is None or len(self.__root.keys) == 0:
-            return
-        stack = [self.__root]
-        while stack:
-            node = stack.pop()
-            for i in range(len(node.keys)):
-                node.keys[i] = cal_func(node.keys[i])
-            if node.is_leaf:
-                for i in range(len(node.keys)):
-                    node.children[i].current_room_number = node.keys[i]
-            else:
-                stack.extend(node.children)
+        """
+        calculate to find ax + b = f(x)
+        f(0) -> find b 
+        f(1) -> find a + b
+        so scale is f(1) - f(0)
+        """
+        a0 = cal_func(0)
+        a1 = cal_func(1)
+        a = int(a1 - a0)
+        b = int(a0)
 
-    def shift_room_number(self, cal_func, key):
-        node = self.__root
-        stack = []
-
-        while not node.is_leaf:
-            child_idx = self.__binary_search(node.keys, key)
-            stack.append((node, child_idx))
-            node = node.children[child_idx]
-
-        # perform shift in leaf node
-        left = 0
-        right = len(node.keys) - 1
-        while left < right:
-            mid = left + (right - left) // 2
-            if key > node.keys[mid]:
-                left = mid + 1
-            else:
-                right = mid
-
-        if len(node.keys) == 0:
-            return
-        # if room is empty will not shift (ideal should always be shifted)
-        if left >= len(node.keys) or key != node.keys[left]:
-            return
-
-        start = left if left < len(node.keys) else len(node.keys)
-        for i in range(start, len(node.keys)):
-            node.keys[i] = cal_func(node.keys[i])
-            node.children[i].current_room_number = node.keys[i]
-
-        self.__update_separator(node)
-        # shift room after number by 1
-        while stack:
-            parent, child_idx = stack.pop()
-            # update every child of that node
-            for i in range(child_idx, len(parent.keys)):
-                parent.keys[i] = cal_func(parent.keys[i])
+        self.__global_affine(int(a), int(b))
 
     def search_leaf(self, node: Node, val):
         while not node.is_leaf:
@@ -400,15 +380,56 @@ class BPlusTree:
         return node
 
     def __binary_search(self, keys: array, val: int) -> int:
+        """
+        Return the index of the first key (strictly) greater than the given logical value.
+        """
+        phs_val = self.__physical_key(val)
         left, right = 0, len(keys)
         while left < right:
             mid = left + (right - left) // 2
-            if keys[mid] <= val:
+            if keys[mid] <= phs_val:
                 left = mid + 1
             else:
                 right = mid
-
         return left
+
+    def __global_affine(self, a: int, b: int):
+        if a <= 0:
+            raise ValueError("Affine scale must be positive")
+
+        """
+        Compose A(x) = ax + b after current G(x) = sx + t => AoG(x) = a(sx + t) + b = (as)x + at + b
+        """
+        self.__g_scale = a * self.__g_scale
+        self.__g_offset = a * self.__g_offset + b
+
+    def __logical_key(self, stored_key: int):
+        return self.__g_scale * stored_key + self.__g_offset
+
+    def __physical_key(self, logical_key: int):
+        return (logical_key - self.__g_offset) // self.__g_scale
+
+    def __physical_exact_key(self, logical_key: int):
+        d = logical_key - self.__g_offset
+        return d // self.__g_scale if d % self.__g_scale == 0 else None
+
+    def __materialize(self):
+        # if no scale and offset nothing to change
+        if self.__g_scale == 1 and self.__g_offset == 0:
+            return
+
+        stack = [self.__root]
+
+        while stack:
+            node = stack.pop()
+            # apply current affine to every key (stored(physical) -> logical), preserving order
+            node.keys = array('i', (self.__logical_key(k) for k in node.keys))
+
+            if not node.is_leaf:
+                stack.extend(node.children)
+
+        self.__g_scale = 1
+        self.__g_offset = 0
 
     def get_leftmost_node(self):
         node = self.__root
@@ -418,10 +439,14 @@ class BPlusTree:
         return node
 
     def search(self, val: int):
+        k_exact = self.__physical_exact_key(val)
+        if k_exact is None:
+            return -1
         leaf = self.search_leaf(self.__root, val)
-        if val in leaf.keys:
-            return leaf.children[leaf.keys.index(val)]
-
+        pos = self.__binary_search(leaf.keys, val)
+        idx = pos - 1
+        if 0 <= idx < len(leaf.keys) and leaf.keys[idx] == k_exact:
+            return leaf.children[idx]
         return -1
 
     def print_tree(self):
@@ -445,7 +470,9 @@ class BPlusTree:
     def _print_leaf(self, node: Optional[Node]):
         while node is not None:
             for i in range(len(node.keys)):
-                print(f'{node.keys[i]: >9d}: {node.children[i]}', end='\n')
+                logical_key = self.__logical_key(node.keys[i])
+                print(
+                    f'{logical_key: >9d}: {node.children[i]}-{logical_key:09d}', end='\n')
             node = node.next_key
         print('')
 
@@ -460,8 +487,8 @@ class BPlusTree:
 
             while node is not None:
                 for i in range(len(node.keys)):
-                    key = node.keys[i]
-                    value = node.children[i]
+                    key = self.__logical_key(node.keys[i])
+                    value = f'{node.children[i]}-{key:09d}'
                     writer.writerow([key, value])
                 node = node.next_key
 
@@ -477,6 +504,9 @@ class BPlusTree:
             # Reset to an empty leaf root
             self.__root = Node(is_leaf=True)
             return
+
+        if self.__g_offset != 0 or self.__g_scale != 1:
+            self.__materialize()
 
         # max keys per node (leaf/internal)
         max_keys = self.__order - 1
@@ -533,55 +563,4 @@ class BPlusTree:
 
 
 if __name__ == '__main__':
-    class Guest:
-        def __init__(self, current_room_number: int, channel: int, arrived_order: int):
-            self.__current_room_number = current_room_number
-            self.__channel = channel
-            self.__arrived_order = arrived_order
-
-        @property
-        def current_room_number(self): return self.__current_room_number
-        @current_room_number.setter
-        def current_room_number(self, n): self.__current_room_number = n
-
-        @property
-        def channel(self): return self.__channel
-
-        @property
-        def arrived_order(self): return self.__arrived_order
-
-        def __repr__(self) -> str:
-            return f"Guest(Room: {self.__current_room_number}, Channel: {self.channel}, Arrived: {self.__arrived_order})"
-    tree = BPlusTree()
-    num = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    guests = []
-    for i in num:
-        guests.append((i, Guest(i, 1, 0)))
-
-    for guest in guests:
-        tree.insert(guest)
-
-    print('----- tree after insert with guest data ----')
-    tree.print_tree()
-    tree.print_leaf()
-
-    print('----- tree after delete and insert with guest data ----')
-    tree.delete(9)
-    tree.shift_room_number(lambda x: x + 1, 9)
-    tree.insert((9, Guest(9, 1, 1)))
-    tree.print_tree()
-    tree.print_leaf()
-
-    # tree.shift_room_number(lambda x: x + 1, 13)
-    # tree.insert((13, Guest(13, 1, 1)))
-    # tree.shift_room_number(lambda x: x + 1, 12)
-    # tree.insert((12, Guest(12, 1, 1)))
-    # print('----- tree after shift and insert ----')
-    # tree.print_tree()
-    # tree.print_leaf()
-
-    # Test deletion
-    # tree.delete(2)
-    # print('----- tree after delete 2 ----')
-    # tree.print_tree()
-    # tree.print_leaf()
+    pass
