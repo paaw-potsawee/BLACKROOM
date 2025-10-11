@@ -4,6 +4,8 @@ from tqdm import tqdm
 
 
 class Guest:
+    __slots__ = ('__current_room_number', '__id')
+
     def __init__(self, current_room_number: int, channel: int, arrived_order: int):
         self.__current_room_number = current_room_number
         self.__id = self.__get_id(channel, arrived_order)
@@ -27,6 +29,8 @@ class Guest:
 
 
 class Hotel:
+    __slots__ = ('__tree', '__guest_order')
+
     def __init__(self):
         self.__tree = BPlusTree(order=64)
         self.__guest_order = 0
@@ -48,13 +52,19 @@ class Hotel:
     # insertion method
     # walk in shift current guest by number of new guests
     @profile
-    def walk_in(self, n):
+    def walk_in(self, n, profile_msg: str | None = None):
+        # Fast path: initial build -> bulk load in O(N)
+        if (profile_msg == "initialize") or self.__tree.is_empty():
+            pairs = [(i, Guest(i, 1, self.__guest_order)) for i in range(n)]
+            self.__tree.bulk_load(pairs)
+            self.__guest_order += 1
+            return
+
+        # Fallback to existing behavior
         self.__tree.process_room_number(lambda x: x + n)
-        # insert new guests
         for i in tqdm(range(n)):
             guest = Guest(i, 1, self.__guest_order)
             self.__tree.insert((i, guest))
-
         self.__guest_order += 1
 
     # bus (conceptually infinity guests on n bus)

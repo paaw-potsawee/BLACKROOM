@@ -3,6 +3,8 @@ from array import array
 import csv
 
 class Node:
+    __slots__ = ('__keys', '__children', '__next_key', '__parent', '__is_leaf')
+
     def __init__(self, is_leaf: bool = True):
         self.__keys: array = array('i')
         self.__children: list[Any] = []
@@ -49,8 +51,13 @@ class Node:
 
     @property
     def keys(self) -> array: return self.__keys
+
     @keys.setter
-    def keys(self, data: list): self.__keys = array('i', data)
+    def keys(self, data):
+        if isinstance(data, array):
+            self.__keys = data
+        else:
+            self.__keys = array('i', data)
 
     @property
     def parent(self): return self.__parent
@@ -89,11 +96,15 @@ class Node:
 
 
 class BPlusTree:
+    __slots__ = ('__order', '__min_leaf_keys', '__min_internal_keys', '__root')
+
     def __init__(self, order: int = 4):
         if order < 3:
             raise ValueError('B+ tree order should not  less than 3')
         self.__order: int = order
-        self.__min_key: int = -(-self.__order // 2) - 1
+        # Leaf min keys = ceil((m-1)/2) == floor(m/2); Internal min keys = ceil(m/2) - 1 == floor((m-1)/2)
+        self.__min_leaf_keys: int = self.__order // 2
+        self.__min_internal_keys: int = (self.__order - 1) // 2
         self.__root: Node = Node(is_leaf=True)
 
     @property
@@ -113,8 +124,9 @@ class BPlusTree:
         if len(leaf_node.keys) > self.__order - 1:
             mid = len(leaf_node.keys) // 2
             new_leaf = Node(is_leaf=True)
-            new_leaf.keys = list(leaf_node.keys[mid:])
-            leaf_node.keys = list(leaf_node.keys[:mid])
+            # Use array slicing to avoid intermediate list allocations.
+            new_leaf.keys = leaf_node.keys[mid:]
+            leaf_node.keys = leaf_node.keys[:mid]
             # split guest data
             if leaf_node.is_leaf and len(leaf_node.children) > 0:
                 new_leaf.children = leaf_node.children[mid:]
@@ -152,13 +164,14 @@ class BPlusTree:
 
             # create new internal node
             new_node = Node(is_leaf=False)
-            new_node.keys = list(parent.keys[mid + 1:])
+            # Use array slicing here as well to save allocations.
+            new_node.keys = parent.keys[mid + 1:]
             new_node.children = parent.children[mid + 1:]
             # point child to new parent
             for child in new_node.children:
                 child.parent = new_node
 
-            parent.keys = list(parent.keys[:mid])
+            parent.keys = parent.keys[:mid]
             parent.children = parent.children[:mid + 1]
 
             if parent.parent is None:
@@ -177,7 +190,6 @@ class BPlusTree:
         try:
             idx = leaf_node.keys.index(val)
         except ValueError:
-            print('not found')
             return -1
 
         leaf_node.keys.remove(val)
@@ -190,23 +202,22 @@ class BPlusTree:
             return
 
         # if leaf node has at least min_key
-        if leaf_node.get_key_len() >= self.__min_key:
+        if leaf_node.get_key_len() >= self.__min_leaf_keys:
             # if first value of keys update separator recursively
             self.__update_separator(leaf_node)
             return
 
         # underflow
-        # try borrow from sibling
         left, right, leaf_idx = parent.get_siblings(leaf_node)
         # try from left first
-        if left and left.get_key_len() > self.__min_key:
+        if left and left.get_key_len() > self.__min_leaf_keys:
             leaf_node.keys.insert(0, left.keys.pop())
             if left.is_leaf and len(left.children) > 0:
                 leaf_node.children.insert(0, left.children.pop())
             self.__update_separator(leaf_node)
             return
         # try from right if left failed
-        if right and right.get_key_len() > self.__min_key:
+        if right and right.get_key_len() > self.__min_leaf_keys:
             leaf_node.keys.append(right.keys.pop(0))
             if right.is_leaf and len(right.children) > 0:
                 leaf_node.children.append(right.children.pop(0))
@@ -214,11 +225,11 @@ class BPlusTree:
             self.__update_separator(leaf_node)
             return
 
-        # merge with sibing try merge with left (if exists) then with right
+        # merge with sibling try merge with left (if exists) then with right
         if left:
             # merge with left node
             self.__merge_node(left, leaf_node, parent, leaf_idx - 1)
-            if len(parent.keys) < self.__min_key:
+            if len(parent.keys) < self.__min_internal_keys:
                 self.__handle_internal_underflow(parent)
             self.__update_separator(left)
             return
@@ -242,12 +253,11 @@ class BPlusTree:
 
             left.next_key = right.next_key
         else:
-            # merge two internals
-            left.keys.append(parent.keys[separator_idx])
-            left.keys.extend(right.keys)
+            # merge two internals: move children and rebuild keys from children
             left.children.extend(right.children)
             for child in right.children:
                 child.parent = left
+            self.__rebuild_internal_keys(left)
 
         # always remove the separator key at separator_idx
         parent.keys.pop(separator_idx)
@@ -264,51 +274,66 @@ class BPlusTree:
         left, right, idx = parent.get_siblings(node)
 
         # borrow from left
-        if left and len(left.keys) > self.__min_key:
-            borrow_key = parent.keys[idx - 1]
-            # insert the separator at front of node.keys
-            node.keys.insert(0, borrow_key)
-            # move last child from left into node
+        if left and len(left.keys) > self.__min_internal_keys:
+            # move last child from left into node (front)
             child = left.children.pop()
             node.children.insert(0, child)
             child.parent = node
-            # replace parent separator with left's last key
-            parent.keys[idx - 1] = left.keys.pop()
+            # rebuild keys for both internals and update the separator in parent
+            self.__rebuild_internal_keys(left)
+            self.__rebuild_internal_keys(node)
+            parent.keys[idx - 1] = self.__leftmost_key(node)
             return
 
         # borrow from right
-        if right and len(right.keys) > self.__min_key:
-            borrow_key = parent.keys[idx]
-            node.keys.append(borrow_key)
+        if right and len(right.keys) > self.__min_internal_keys:
+            # move first child from right into node (end)
             child = right.children.pop(0)
             node.children.append(child)
             child.parent = node
-            parent.keys[idx] = right.keys.pop(0)
+            # rebuild keys for both internals and update the separator in parent
+            self.__rebuild_internal_keys(right)
+            self.__rebuild_internal_keys(node)
+            parent.keys[idx] = self.__leftmost_key(right)
             return
 
         # merge with left
         if left:
             self.__merge_node(left, node, parent, idx - 1)
-            if len(parent.keys) < self.__min_key:
+            if len(parent.keys) < self.__min_internal_keys:
                 self.__handle_internal_underflow(parent)
             return
 
         # merge with right
         if right:
             self.__merge_node(node, right, parent, idx)
-            if len(parent.keys) < self.__min_key:
+            if len(parent.keys) < self.__min_internal_keys:
                 self.__handle_internal_underflow(parent)
             return
 
-    def __update_separator(self, node: Node):
-        parent = node.parent
-        if parent is None:
+    def __rebuild_internal_keys(self, node: Node):
+        # Rebuild internal node keys so that keys[i] == leftmost_key(children[i+1])
+        if node.is_leaf:
             return
+        new_keys = array('i')
+        for i in range(len(node.children) - 1):
+            new_keys.append(self.__leftmost_key(node.children[i + 1]))
+        node.keys = new_keys
 
-        for i in range(len(parent.keys)):
-            parent.keys[i] = self.__leftmost_key(parent.children[i + 1])
-        # recurse upward
-        self.__update_separator(parent)
+    def __update_separator(self, node: Node):
+        # Update only the necessary separator (the one immediately before 'node')
+        # while walking up to the root, instead of recomputing all separators.
+        parent = node.parent
+        while parent is not None:
+            try:
+                idx = parent.children.index(node)
+            except ValueError:
+                break
+            if idx > 0:
+                parent.keys[idx -
+                            1] = self.__leftmost_key(parent.children[idx])
+            node = parent
+            parent = parent.parent
 
     def __leftmost_key(self, node: Node):
         while not node.is_leaf:
@@ -440,6 +465,70 @@ class BPlusTree:
                 node = node.next_key
 
         print(f"Guest data exported to {filename}")
+
+    def is_empty(self) -> bool:
+        # Fast check for an empty tree (single empty leaf).
+        return self.__root.is_leaf and len(self.__root.keys) == 0
+
+    def bulk_load(self, sorted_pairs: list[tuple[int, Any]]):
+        # Build a B+ tree from sorted (key, value) pairs in linear time.
+        if not sorted_pairs:
+            # Reset to an empty leaf root
+            self.__root = Node(is_leaf=True)
+            return
+
+        # max keys per node (leaf/internal)
+        max_keys = self.__order - 1
+        max_children = self.__order  # max children per internal
+
+        # Build leaves
+        leaves: list[Node] = []
+        n = len(sorted_pairs)
+        i = 0
+        prev_leaf = None
+        while i < n:
+            chunk = sorted_pairs[i:i + max_keys]
+            keys_chunk = array('i', (k for k, _ in chunk))
+            vals_chunk = [v for _, v in chunk]
+
+            leaf = Node(is_leaf=True)
+            leaf.keys = keys_chunk
+            leaf.children = vals_chunk
+
+            if prev_leaf is not None:
+                prev_leaf.next_key = leaf
+            prev_leaf = leaf
+            leaves.append(leaf)
+            i += max_keys
+
+        if len(leaves) == 1:
+            self.__root = leaves[0]
+            self.__root.parent = None
+            return
+
+        # Iteratively build internal levels
+        level = leaves
+        while len(level) > 1:
+            parents: list[Node] = []
+            j = 0
+            m = len(level)
+            while j < m:
+                group = level[j:j + max_children]
+                parent = Node(is_leaf=False)
+                parent.children = group
+                for child in group:
+                    child.parent = parent
+                # keys[i] = leftmost_key(children[i+1]) == children[i+1].keys[0] for B+ tree
+                sep = array('i', (group[idx].keys[0]
+                            for idx in range(1, len(group))))
+                parent.keys = sep
+                parents.append(parent)
+                j += max_children
+            level = parents
+
+        # Set root
+        self.__root = level[0]
+        self.__root.parent = None
 
 
 if __name__ == '__main__':
