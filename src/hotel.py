@@ -106,7 +106,7 @@ class Hotel:
         return f"room {key} removed"
 
     def get_file(self):
-        pass
+        self.__tree.export_to_csv()
 
 
 if __name__ == "__main__":

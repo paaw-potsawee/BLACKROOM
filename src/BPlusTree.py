@@ -1,6 +1,6 @@
 from typing import Optional, Any
 from array import array
-
+import csv
 
 class Node:
     def __init__(self, is_leaf: bool = True):
@@ -422,6 +422,24 @@ class BPlusTree:
                 print(f'{node.keys[i]: >9d}: {node.children[i]}', end='\n')
             node = node.next_key
         print('')
+        
+    def export_to_csv(self,filename : str = "hotel.csv"):
+        node = self.__root
+        while not node.is_leaf:
+            node = node.children[0]
+            
+        with open(filename, "w", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow(["Room Number", "Guest Info"])
+
+            while node is not None:
+                for i in range(len(node.keys)):
+                    key = node.keys[i]
+                    value = node.children[i]
+                    writer.writerow([key, value])
+                node = node.next_key
+
+        print(f"Guest data exported to {filename}")
 
 
 if __name__ == '__main__':
