@@ -130,6 +130,7 @@ class BPlusTree:
 
         phy_key = self.__physical_exact_key(key)
         if phy_key is None:
+            # Non-exact under current lazy transform: materialize and insert as-is
             self.__materialize()
             leaf_node = self.search_leaf(self.__root, key)
             phy_key = key
@@ -439,33 +440,28 @@ class BPlusTree:
     def __physical_key(self, logical_key: int):
         if not self.__tri_active:
             return (logical_key - self.__g_offset) // self.__g_scale
-        # use this math equation floor(((isqrt(1 + 8n) + 1) / 2)
-        x = (logical_key - self.__out_offset) // self.__out_scale
-        r = isqrt(max(0, 8 * x + 1))
-        n = (r - 1) // 2
-        return (n - self.__g_offset) // self.__g_scale
+        # tri_plus inverse (floor): u=floor((V - T2)/S2), r=floor(sqrt(8u+1)), n_floor=(r-1)//2
+        u = (logical_key - self.__out_offset) // self.__out_scale
+        r = isqrt(max(0, 8 * u + 1))
+        n_floor = (r - 1) // 2
+        return (n_floor - self.__in_offset) // self.__in_scale
 
     def __physical_exact_key(self, logical_key: int):
         if not self.__tri_active:
             d = logical_key - self.__g_offset
             return d // self.__g_scale if d % self.__g_scale == 0 else None
-
-        # must divisible by scale
+        # tri_plus exact: V = S2 * (n*(n+1)//2) + T2, where n = S1*k + T1
         d2 = logical_key - self.__out_offset
         if d2 % self.__out_scale != 0:
             return None
         u = d2 // self.__out_scale
-
-        # exact key must be perfect squre
         r = isqrt(8 * u + 1)
         if r * r != 8 * u + 1:
             return None
         n = (r - 1) // 2
-        if n * (n - 1) // 2 != u:
+        if n * (n + 1) // 2 != u:
             return None
-
-        # must divisible by in scale
-        d1 = r - self.__in_offset
+        d1 = n - self.__in_offset
         if d1 % self.__in_scale != 0:
             return None
         return d1 // self.__in_scale

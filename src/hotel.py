@@ -78,10 +78,13 @@ class Hotel:
 
     @profile
     def ship(self, bus_per_ship, guest_per_bus):
+        # Apply triangular transform: tri_plus(x) = x*(x+1)//2
         self.__tree.process_room_number(lambda x: (((x + 1) * (x)) // 2))
         for bus in tqdm(range(1, guest_per_bus + 1)):
             for i in range(1, bus_per_ship + 1):
-                guest_no = int(((bus + i - 1) * (bus + i)) / 2 + bus)
+                # Excel: FLOOR.MATH((($A2+O$1)*($A2+O$1+1))/2)+$A2, with A2=bus, O1=i-1
+                i_off = i - 1
+                guest_no = ((bus + i_off) * (bus + i_off + 1)) // 2 + bus
                 guest = Guest(3, self.__guest_order)
                 self.__tree.insert((guest_no, guest))
 
@@ -120,5 +123,5 @@ if __name__ == "__main__":
     hotel = Hotel()
     hotel.walk_in(10)
     hotel.print_data()
-    hotel.ship(10, 2)
+    hotel.ship(10, 30)
     hotel.print_data()
