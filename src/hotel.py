@@ -50,14 +50,15 @@ class Hotel:
     def walk_in(self, n, profile_msg: str | None = None):
         # Fast path: initial build -> bulk load in O(N)
         if (profile_msg == "initialize") or self.__tree.is_empty():
-            pairs = [(i, Guest(1, self.__guest_order)) for i in range(n)]
+            pairs = [(i, Guest(1, self.__guest_order))
+                     for i in range(1, n + 1)]
             self.__tree.bulk_load(pairs)
             self.__guest_order += 1
             return
 
         # Fallback to existing behavior
         self.__tree.process_room_number(lambda x: x + n)
-        for i in tqdm(range(n)):
+        for i in tqdm(range(1, n + 1)):
             guest = Guest(1, self.__guest_order)
             self.__tree.insert((i, guest))
         self.__guest_order += 1
@@ -65,10 +66,11 @@ class Hotel:
     # bus (conceptually infinity guests on n bus)
     @profile
     def bus(self, total_bus, guest_per_bus):
-        self.__tree.process_room_number(lambda x: x * (total_bus + 1))
+        self.__tree.process_room_number(
+            lambda x: x * (total_bus + 1))
         for bus_no in tqdm(range(1, total_bus + 1)):
-            for i in range(guest_per_bus):
-                guest_no = (i * (total_bus + 1) + bus_no)
+            for i in range(1, guest_per_bus + 1):
+                guest_no = ((i * (total_bus + 1)) - bus_no)
                 guest = Guest(2, self.__guest_order)
                 self.__tree.insert((guest_no, guest))
 
@@ -76,10 +78,11 @@ class Hotel:
 
     @profile
     def ship(self, bus_per_ship, guest_per_bus):
-        self.__tree.process_room_number(lambda x: int(((x - 1) * (x)) / 2 + x))
+        self.__tree.process_room_number(lambda x: (((x + 1) * (x)) // 2))
         for bus in tqdm(range(1, guest_per_bus + 1)):
             for i in range(1, bus_per_ship + 1):
-                guest_no = int(((bus + i - 1) * (bus + i)) / 2 + i)
+                guest_no = int(((bus + i - 1) * (bus + i)) / 2 + bus)
+                print(f'bus={bus} got {guest_no}')
                 guest = Guest(3, self.__guest_order)
                 self.__tree.insert((guest_no, guest))
 
@@ -116,7 +119,7 @@ class Hotel:
 
 if __name__ == "__main__":
     hotel = Hotel()
-    hotel.walk_in(50)
-    hotel.ship(2, 10)
-    # hotel.bus(4, 10)
+    hotel.walk_in(10)
+    hotel.print_data()
+    hotel.ship(10, 2)
     hotel.print_data()

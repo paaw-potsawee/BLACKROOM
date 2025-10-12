@@ -99,7 +99,7 @@ class Node:
 
 class BPlusTree:
     __slots__ = ('__order', '__min_leaf_keys', '__min_internal_keys',
-                 '__root', '__g_offset', '__g_scale')
+                 '__root', '__g_offset', '__g_scale', '__tri_active', '__in_scale', '__out_scale', '__in_offset', '__out_offset')
 
     def __init__(self, order: int = 4):
         if order < 3:
@@ -111,6 +111,12 @@ class BPlusTree:
         self.__root: Node = Node(is_leaf=True)
         self.__g_scale: int = 1
         self.__g_offset: int = 0
+        # tri-affine
+        self.__tri_active: bool = False
+        self.__in_scale: int = 1
+        self.__in_offset: int = 0
+        self.__out_scale: int = 1
+        self.__out_offset: int = 0
 
     @property
     def root(self): return self.__root
@@ -361,17 +367,25 @@ class BPlusTree:
 
     def process_room_number(self, cal_func):
         """
-        calculate to find ax + b = f(x)
-        f(0) -> find b 
-        f(1) -> find a + b
-        so scale is f(1) - f(0)
+        Accept only:
+         - affine: f(x) = a*x + b, a > 0
+         - triangular: f(x) = x*(x+1)//2
+         Any other function is rejected (raise Value error)
         """
-        a0 = cal_func(0)
-        a1 = cal_func(1)
-        a = int(a1 - a0)
-        b = int(a0)
+        y0 = int(cal_func(0))
+        y1 = int(cal_func(1))
+        y2 = int(cal_func(2))
+        y3 = int(cal_func(3))
+        if (y0, y1, y2, y3) == (0, 1, 3, 6):
+            self.__compose_triangular()
+            return
 
-        self.__global_affine(int(a), int(b))
+        d1 = y1 - y0
+        if (y2 - y1) == d1 and (y3 - y2) == d1:
+            self.__compose_affine(int(d1), int(y0))
+            return
+
+        raise ValueError('function is not acceptable by process_room_number')
 
     def search_leaf(self, node: Node, val):
         while not node.is_leaf:
@@ -393,29 +407,72 @@ class BPlusTree:
                 right = mid
         return left
 
-    def __global_affine(self, a: int, b: int):
+    def __compose_affine(self, a: int, b: int):
         if a <= 0:
             raise ValueError("Affine scale must be positive")
 
-        """
-        Compose A(x) = ax + b after current G(x) = sx + t => AoG(x) = a(sx + t) + b = (as)x + at + b
-        """
+        if self.__tri_active:
+            self.__out_scale = a * self.__out_scale
+            self.__out_offset = a * self.__out_offset + b
+            return
         self.__g_scale = a * self.__g_scale
         self.__g_offset = a * self.__g_offset + b
 
+    def __compose_triangular(self):
+        if self.__tri_active:
+            self.__materialize()
+
+        self.__in_scale = self.__g_scale
+        self.__in_offset = self.__g_offset
+        self.__out_scale = 1
+        self.__out_offset = 0
+        self.__tri_active = True
+        self.__g_scale = 1
+        self.__g_offset = 0
+
     def __logical_key(self, stored_key: int):
-        return self.__g_scale * stored_key + self.__g_offset
+        if not self.__tri_active:
+            return self.__g_scale * stored_key + self.__g_offset
+        n = self.__in_scale * stored_key + self.__in_offset
+        return self.__out_scale * (n*(n + 1) // 2) + self.__out_offset
 
     def __physical_key(self, logical_key: int):
-        return (logical_key - self.__g_offset) // self.__g_scale
+        if not self.__tri_active:
+            return (logical_key - self.__g_offset) // self.__g_scale
+        # use this math equation floor(((isqrt(1 + 8n) + 1) / 2)
+        x = (logical_key - self.__out_offset) // self.__out_scale
+        r = isqrt(max(0, 8 * x + 1))
+        n = (r - 1) // 2
+        return (n - self.__g_offset) // self.__g_scale
 
     def __physical_exact_key(self, logical_key: int):
-        d = logical_key - self.__g_offset
-        return d // self.__g_scale if d % self.__g_scale == 0 else None
+        if not self.__tri_active:
+            d = logical_key - self.__g_offset
+            return d // self.__g_scale if d % self.__g_scale == 0 else None
+
+        # must divisible by scale
+        d2 = logical_key - self.__out_offset
+        if d2 % self.__out_scale != 0:
+            return None
+        u = d2 // self.__out_scale
+
+        # exact key must be perfect squre
+        r = isqrt(8 * u + 1)
+        if r * r != 8 * u + 1:
+            return None
+        n = (r - 1) // 2
+        if n * (n - 1) // 2 != u:
+            return None
+
+        # must divisible by in scale
+        d1 = r - self.__in_offset
+        if d1 % self.__in_scale != 0:
+            return None
+        return d1 // self.__in_scale
 
     def __materialize(self):
         # if no scale and offset nothing to change
-        if self.__g_scale == 1 and self.__g_offset == 0:
+        if (not self.__tri_active) and self.__g_scale == 1 and self.__g_offset == 0:
             return
 
         stack = [self.__root]
@@ -428,8 +485,14 @@ class BPlusTree:
             if not node.is_leaf:
                 stack.extend(node.children)
 
+        # reset all scale and offset
         self.__g_scale = 1
         self.__g_offset = 0
+        self.__tri_active = False
+        self.__in_scale = 1
+        self.__in_offset = 0
+        self.__out_scale = 1
+        self.__out_offset = 0
 
     def get_leftmost_node(self):
         node = self.__root
@@ -505,7 +568,7 @@ class BPlusTree:
             self.__root = Node(is_leaf=True)
             return
 
-        if self.__g_offset != 0 or self.__g_scale != 1:
+        if self.__tri_active or self.__g_offset != 0 or self.__g_scale != 1:
             self.__materialize()
 
         # max keys per node (leaf/internal)
