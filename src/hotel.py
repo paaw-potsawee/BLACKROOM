@@ -82,7 +82,6 @@ class Hotel:
         for bus in tqdm(range(1, guest_per_bus + 1)):
             for i in range(1, bus_per_ship + 1):
                 guest_no = int(((bus + i - 1) * (bus + i)) / 2 + bus)
-                print(f'bus={bus} got {guest_no}')
                 guest = Guest(3, self.__guest_order)
                 self.__tree.insert((guest_no, guest))
 

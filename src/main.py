@@ -155,20 +155,29 @@ def main():
                             # insert infinite guest
                             total_number = int(
                                 input("Enter guest number (infinite): "))
-                            hotel.bus(1, total_number)
+                            if total_number <= 0:
+                                print('number input must in positive integer')
+                            else:
+                                hotel.bus(1, total_number)
                         case 3:
                             # insert n buses
                             guest_per_bus = int(
                                 input("Enter guest number per bus (infinite): "))
                             total_bus = int(input("Enter total bus: "))
-                            hotel.bus(total_bus, guest_per_bus)
+                            if total_bus <= 0 or guest_per_bus <= 0:
+                                print('number input must in positive integer')
+                            else:
+                                hotel.bus(total_bus, guest_per_bus)
                         case 4:
                             # insert infinite bus
                             guests = int(
                                 input("Enter guest number per bus (infinite): "))
                             buses = int(
                                 input("Enter total bus (infinite): "))
-                            hotel.ship(buses, guests)
+                            if guests <= 0 or buses <= 0:
+                                print('number input must in positive integer')
+                            else:
+                                hotel.ship(buses, guests)
                         case _:
                             print('Invalid channel')
                 else:
