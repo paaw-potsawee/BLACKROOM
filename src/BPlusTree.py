@@ -8,7 +8,7 @@ class Node:
     __slots__ = ('__keys', '__children', '__next_key', '__parent', '__is_leaf')
 
     def __init__(self, is_leaf: bool = True):
-        self.__keys: array = array('Q')
+        self.__keys: array = array('q')
         self.__children: list[Any] = []
         self.__next_key: Optional["Node"] = None
         self.__parent: Optional["Node"] = None
@@ -59,7 +59,7 @@ class Node:
         if isinstance(data, array):
             self.__keys = data
         else:
-            self.__keys = array('Q', data)
+            self.__keys = array('q', data)
 
     @property
     def parent(self): return self.__parent
@@ -341,7 +341,7 @@ class BPlusTree:
         # Rebuild internal node keys so that keys[i] == leftmost_key(children[i+1])
         if node.is_leaf:
             return
-        new_keys = array('Q')
+        new_keys = array('q')
         for i in range(len(node.children) - 1):
             new_keys.append(self.__leftmost_key(node.children[i + 1]))
         node.keys = new_keys
@@ -476,7 +476,7 @@ class BPlusTree:
         while stack:
             node = stack.pop()
             # apply current affine to every key (stored(physical) -> logical), preserving order
-            node.keys = array('Q', (self.__logical_key(k) for k in node.keys))
+            node.keys = array('q', (self.__logical_key(k) for k in node.keys))
 
             if not node.is_leaf:
                 stack.extend(node.children)
@@ -578,7 +578,7 @@ class BPlusTree:
         prev_leaf = None
         while i < n:
             chunk = sorted_pairs[i:i + max_keys]
-            keys_chunk = array('Q', (k for k, _ in chunk))
+            keys_chunk = array('q', (k for k, _ in chunk))
             vals_chunk = [v for _, v in chunk]
 
             leaf = Node(is_leaf=True)
@@ -609,7 +609,7 @@ class BPlusTree:
                 for child in group:
                     child.parent = parent
                 # keys[i] = leftmost_key(children[i+1]) == children[i+1].keys[0] for B+ tree
-                sep = array('Q', (group[idx].keys[0]
+                sep = array('q', (group[idx].keys[0]
                             for idx in range(1, len(group))))
                 parent.keys = sep
                 parents.append(parent)
