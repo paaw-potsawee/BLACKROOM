@@ -106,7 +106,7 @@ class Hotel:
         if result == -1:
             return f"room {key} is empty"
 
-        return f"found: {result}"
+        return f"found: {result}-{key:09d}"
 
     @profile
     def remove(self, key):
@@ -120,8 +120,4 @@ class Hotel:
 
 
 if __name__ == "__main__":
-    hotel = Hotel()
-    hotel.walk_in(10)
-    hotel.print_data()
-    hotel.ship(10, 30)
-    hotel.print_data()
+    pass

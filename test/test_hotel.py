@@ -30,11 +30,11 @@ class TestHotel(unittest.TestCase):
 
         h.walk_in(n)
         for k in range(1, n + 1):
-            self.assertEqual(f'found: WLK-{1:05d}', h.search(
+            self.assertEqual(f'found: WLK-{1:05d}-{k:09d}', h.search(
                 k), 'walk in room alignment incorrect')
 
         for k in range(n + 1, 2 * n + 1):
-            self.assertEqual(f'found: WLK-{0:05d}', h.search(
+            self.assertEqual(f'found: WLK-{0:05d}-{k:09d}', h.search(
                 k), 'walk in room alignment incorrect')
 
     def test_bus_unique(self):
