@@ -10,9 +10,7 @@ from hotel import Hotel  # NOQA
 
 
 def cantor_pair(bus: int, i: int) -> int:
-    # tri variant tri(x)=x*(x-1)//2 => tri(bus+i+1)+bus
-    i_off = i - 1
-    return ((bus + i_off) * (bus + i_off + 1)) // 2 + bus
+    return ((bus + i) * (bus + i + 1)) // 2 + bus
 
 
 class TestHotel(unittest.TestCase):
@@ -30,11 +28,11 @@ class TestHotel(unittest.TestCase):
 
         h.walk_in(n)
         for k in range(1, n + 1):
-            self.assertEqual(f'found: WLK-{1:05d}-{k:09d}', h.search(
+            self.assertEqual(f'found: WLK_FIN-{1:03d}-{k:09d}', h.search(
                 k), 'walk in room alignment incorrect')
 
         for k in range(n + 1, 2 * n + 1):
-            self.assertEqual(f'found: WLK-{0:05d}-{k:09d}', h.search(
+            self.assertEqual(f'found: INT_INF-{0:03d}-{k:09d}', h.search(
                 k), 'walk in room alignment incorrect')
 
     def test_bus_unique(self):
@@ -56,18 +54,24 @@ class TestHotel(unittest.TestCase):
         # Seed with many walk-ins to ensure transform interacts with data
         h.walk_in(20000, profile_msg="initialize")
 
-        bus_per_ship = 300
-        guest_per_bus = 300
+        # verify formula with output from excel
+        self.assertEqual(cantor_pair(131, 49), 16421,
+                         'Calculation ship key should return same value as Excel')
+        self.assertEqual(cantor_pair(225, 48), 37626,
+                         'Calculation ship key should return same value as Excel')
+
+        bus_per_ship = 100
+        guest_per_bus = 500
         # Expected set using the corrected unique pairing
         expected = set(cantor_pair(bus, i) for bus in range(
-            1, guest_per_bus + 1) for i in range(1, bus_per_ship + 1))
-        self.assertEqual(len(expected), bus_per_ship * guest_per_bus)
+            1, bus_per_ship + 1) for i in range(1, guest_per_bus + 1))
+
+        self.assertEqual(len(expected), bus_per_ship * guest_per_bus,
+                         'formula for ship should have unique key value')
 
         h.ship(bus_per_ship, guest_per_bus)
 
         # Verify a broad random sample
-        def silent_callback(*args, **kwargs):
-            pass
         sample = random.sample(list(expected), 500)
         for k in sample:
             self.assertIn("found:", h.search(k))
