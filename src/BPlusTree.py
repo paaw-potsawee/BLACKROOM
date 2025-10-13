@@ -524,14 +524,15 @@ class BPlusTree:
         node = self.__root
         while not node.is_leaf:
             node = node.children[0]
-        self._print_leaf(node)
+        self._print_leaf(node, 1)
 
-    def _print_leaf(self, node: Optional[Node]):
+    def _print_leaf(self, node: Optional[Node], count):
         while node is not None:
             for i in range(len(node.keys)):
                 logical_key = self.__logical_key(node.keys[i])
                 print(
-                    f'{logical_key: >9d}: {node.children[i]}-{logical_key:09d}', end='\n')
+                    f'{count: >9d}: {node.children[i]}-{logical_key:09d}', end='\n')
+                count += 1
             node = node.next_key
         print('')
 
