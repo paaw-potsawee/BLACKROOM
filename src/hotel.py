@@ -14,13 +14,12 @@ class Guest:
 
     @staticmethod
     def __get_id(channel, arrived_order):
-        ch = {1: 'WLK', 2: 'BUS', 3: 'SHP'}.get(channel, f'CH{channel}')
-        return f"{ch}-{arrived_order:05d}"
+        ch = {0: 'INT_INF', 1: 'WLK_FIN', 2: 'WLK_INF', 3: 'BUS_FIN',
+              4: 'BUS_INF', 5: 'MAN_FIN'}.get(channel, f'CH{channel}')
+        return f"{ch}-{arrived_order:03d}"
 
     def __repr__(self) -> str:
-        # print format method-arrived_order-current_room_number
         return f'{self.__id}'
-        # return f'{self.__id}-{self.__current_room_number:09d}'
 
 
 class Hotel:
@@ -48,15 +47,14 @@ class Hotel:
     # walk in shift current guest by number of new guests
     @profile
     def walk_in(self, n, profile_msg: str | None = None):
-        # Fast path: initial build -> bulk load in O(N)
+        # initial build (bulk load)
         if (profile_msg == "initialize") or self.__tree.is_empty():
-            pairs = [(i, Guest(1, self.__guest_order))
+            pairs = [(i, Guest(0, self.__guest_order))
                      for i in range(1, n + 1)]
             self.__tree.bulk_load(pairs)
             self.__guest_order += 1
             return
 
-        # Fallback to existing behavior
         self.__tree.process_room_number(lambda x: x + n)
         for i in tqdm(range(1, n + 1)):
             guest = Guest(1, self.__guest_order)
@@ -65,13 +63,14 @@ class Hotel:
 
     # bus (conceptually infinity guests on n bus)
     @profile
-    def bus(self, total_bus, guest_per_bus):
+    def bus(self, total_bus, guest_per_bus, is_walk=False):
         self.__tree.process_room_number(
             lambda x: x * (total_bus + 1))
+        guest_channel = 2 if is_walk else 3
         for bus_no in tqdm(range(1, total_bus + 1)):
             for i in range(1, guest_per_bus + 1):
                 guest_no = ((i * (total_bus + 1)) - bus_no)
-                guest = Guest(2, self.__guest_order)
+                guest = Guest(guest_channel, self.__guest_order)
                 self.__tree.insert((guest_no, guest))
 
         self.__guest_order += 1
@@ -85,7 +84,7 @@ class Hotel:
                 # Excel: FLOOR.MATH((($A2+O$1)*($A2+O$1+1))/2)+$A2, with A2=bus, O1=i-1
                 i_off = i - 1
                 guest_no = ((bus + i_off) * (bus + i_off + 1)) // 2 + bus
-                guest = Guest(3, self.__guest_order)
+                guest = Guest(4, self.__guest_order)
                 self.__tree.insert((guest_no, guest))
 
         self.__guest_order += 1
@@ -93,7 +92,7 @@ class Hotel:
     @profile
     def manual_insert(self, key):
         # insert at specific room if guest exists will replace that guest
-        guest = Guest(1, self.__guest_order)
+        guest = Guest(5, self.__guest_order)
         self.__tree.insert((key, guest))
         self.__guest_order += 1
 

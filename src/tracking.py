@@ -26,6 +26,9 @@ def profile(func, *, callback: Optional[Callable] = None, message: Optional[str]
         elapsed_ms = (time() - start_time) * 1000
         mem_diff = mem_after - mem_before
 
+        if os.getenv('ENV') == 'test':
+            return result
+
         if callback:
             try:
                 callback(func.__name, mem_before, mem_after, mem_diff,
@@ -34,8 +37,8 @@ def profile(func, *, callback: Optional[Callable] = None, message: Optional[str]
                 pass
         else:
             print(
-                f"{used_msg}: memory {mem_after/1024**2:.2f} MB (diff {mem_diff/1024**2:.2f} MB)")
-            print(f"{used_msg}:{elapsed_ms} ms")
+                f"{used_msg}: memory {mem_after} Bytes (diff {mem_diff} Bytes)")
+            print(f"{used_msg}: {elapsed_ms} ms")
 
         return result
     return wrapper
