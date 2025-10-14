@@ -13,6 +13,7 @@ def print_blackroom():
 ╚═════╝  ╚══════╝ ╚═╝  ╚═╝  ╚═════╝ ╚═╝  ╚═╝ ╚═╝  ╚═╝  ╚═════╝   ╚═════╝  ╚═╝     ╚═╝
           """)
 
+
 def goodbye():
     print("""
 
@@ -90,9 +91,7 @@ def main():
                 if len(parts) == 1:
                     clear_screen()
                     print_blackroom()
-                    print("--- Current Guests ---")
                     hotel.print_data()
-                    print("----------------------")
                 else:
                     print("Usage: p")
 
@@ -133,7 +132,10 @@ def main():
                 # i m manual insert at key
                 if opt == 'm':
                     n = int(input("Enter room number: "))
-                    hotel.manual_insert(n)
+                    if n <= 0:
+                        print('Room number must be positive integer')
+                    else:
+                        hotel.manual_insert(n)
                 elif opt == 'c':
                     print("Command Option")
                     print("  1       - walk in")
@@ -151,20 +153,31 @@ def main():
                             # insert infinite guest
                             total_number = int(
                                 input("Enter guest number (infinite): "))
-                            hotel.bus(1, total_number)
+                            if total_number <= 0:
+                                print('number input must in positive integer')
+                            else:
+                                hotel.bus(1, total_number,
+                                          profile_msg='walk in (infinity) logic')
                         case 3:
                             # insert n buses
                             guest_per_bus = int(
                                 input("Enter guest number per bus (infinite): "))
                             total_bus = int(input("Enter total bus: "))
-                            hotel.bus(total_bus, guest_per_bus)
+                            if total_bus <= 0 or guest_per_bus <= 0:
+                                print('number input must in positive integer')
+                            else:
+                                hotel.bus(total_bus, guest_per_bus,
+                                          profile_msg='bus (finite) logic')
                         case 4:
                             # insert infinite bus
                             guests = int(
                                 input("Enter guest number per bus (infinite): "))
                             buses = int(
                                 input("Enter total bus (infinite): "))
-                            hotel.ship(buses, guests)
+                            if guests <= 0 or buses <= 0:
+                                print('number input must in positive integer')
+                            else:
+                                hotel.ship(buses, guests)
                         case _:
                             print('Invalid channel')
                 else:
@@ -174,9 +187,9 @@ def main():
                 print(
                     f"Error: Unknown command '{command}' | try 'h' for more information")
 
-        except ValueError:
-            print(
-                "Error: Invalid number provided for key or amount. Please enter integers.")
+        # except ValueError:
+        #     print(
+        #         "Error: Invalid number provided for key or amount. Please enter integers.")
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
 

@@ -4,35 +4,29 @@ from tqdm import tqdm
 
 
 class Guest:
-    __slots__ = ('__current_room_number', '__id')
+    __slots__ = ('__id')
 
-    def __init__(self, current_room_number: int, channel: int, arrived_order: int):
-        self.__current_room_number = current_room_number
+    def __init__(self, channel: int, arrived_order: int):
         self.__id = self.__get_id(channel, arrived_order)
-
-    @property
-    def current_room_number(self): return self.__current_room_number
-    @current_room_number.setter
-    def current_room_number(self, n): self.__current_room_number = n
 
     @property
     def id(self): return self.__id
 
     @staticmethod
     def __get_id(channel, arrived_order):
-        ch = {1: 'WLK', 2: 'BUS', 3: 'SHP'}.get(channel, f'CH{channel}')
-        return f"{ch}-{arrived_order:05d}"
+        ch = {0: 'INT_INF', 1: 'WLK_FIN', 2: 'WLK_INF', 3: 'BUS_FIN',
+              4: 'BUS_INF', 5: 'MAN_FIN'}.get(channel, f'CH{channel}')
+        return f"{ch}-{arrived_order:03d}"
 
     def __repr__(self) -> str:
-        # print format method-arrived_order-current_room_number
-        return f'{self.__id}-{self.__current_room_number:09d}'
+        return f'{self.__id}'
 
 
 class Hotel:
     __slots__ = ('__tree', '__guest_order')
 
     def __init__(self):
-        self.__tree = BPlusTree(order=64)
+        self.__tree = BPlusTree(order=128)
         self.__guest_order = 0
 
     """
@@ -51,54 +45,61 @@ class Hotel:
 
     # insertion method
     # walk in shift current guest by number of new guests
-    @profile
+    @profile(message='walk in logic')
     def walk_in(self, n, profile_msg: str | None = None):
-        # Fast path: initial build -> bulk load in O(N)
+        # initial build (bulk load)
         if (profile_msg == "initialize") or self.__tree.is_empty():
-            pairs = [(i, Guest(i, 1, self.__guest_order)) for i in range(n)]
+            pairs = [(i, Guest(0, self.__guest_order))
+                     for i in range(1, n + 1)]
             self.__tree.bulk_load(pairs)
             self.__guest_order += 1
             return
 
-        # Fallback to existing behavior
         self.__tree.process_room_number(lambda x: x + n)
-        for i in tqdm(range(n)):
-            guest = Guest(i, 1, self.__guest_order)
+        for i in tqdm(range(1, n + 1)):
+            guest = Guest(1, self.__guest_order)
             self.__tree.insert((i, guest))
         self.__guest_order += 1
 
     # bus (conceptually infinity guests on n bus)
     @profile
-    def bus(self, total_bus, guest_per_bus):
-        self.__tree.process_room_number(lambda x: x * (total_bus + 1))
+    def bus(self, total_bus, guest_per_bus, profile_msg: str | None = None):
+        self.__tree.process_room_number(
+            lambda x: x * (total_bus + 1))
+        guest_channel = 2 if profile_msg != 'bus (finite) logic' else 3
         for bus_no in tqdm(range(1, total_bus + 1)):
-            for i in range(guest_per_bus):
-                guest_no = (i * (total_bus + 1) + bus_no)
-                guest = Guest(guest_no, 2, self.__guest_order)
+            for i in range(1, guest_per_bus + 1):
+                guest_no = ((i * (total_bus + 1)) - bus_no)
+                guest = Guest(guest_channel, self.__guest_order)
                 self.__tree.insert((guest_no, guest))
 
         self.__guest_order += 1
 
-    @profile
+    @profile(message='bus (infinite) logic')
     def ship(self, bus_per_ship, guest_per_bus):
-        self.__tree.process_room_number(lambda x: int(((x - 1) * (x)) / 2 + x))
-        for bus in tqdm(range(1, guest_per_bus + 1)):
-            for i in range(1, bus_per_ship + 1):
-                guest_no = int(((bus + i - 1) * (bus + i)) / 2 + i)
-                guest = Guest(guest_no, 3, self.__guest_order)
+        # Apply triangular transform: tri_plus(x) = x*(x+1)//2
+        self.__tree.process_room_number(lambda x: (((x + 1) * (x)) // 2))
+        for bus in tqdm(range(1, bus_per_ship + 1)):
+            for i in range(1, guest_per_bus + 1):
+                # Excel: FLOOR.MATH((($A2+O$1)*($A2+O$1+1))/2)+$A2, with A2=bus, O1=i-1
+                guest_no = ((bus + i) * (bus + i + 1)) // 2 + bus
+                guest = Guest(4, self.__guest_order)
                 self.__tree.insert((guest_no, guest))
 
         self.__guest_order += 1
 
-    @profile
+    @profile(message='manual insertion')
     def manual_insert(self, key):
-        self.__tree.shift_room_number(lambda x: x + 1, key)
-        guest = Guest(key, 1, self.__guest_order)
+        # insert at specific room if guest exists will replace that guest
+        guest = Guest(5, self.__guest_order)
         self.__tree.insert((key, guest))
         self.__guest_order += 1
 
+    @profile(message='fetch all guest')
     def print_data(self):
+        print("--- Current Guests ---")
         self.__tree.print_leaf()
+        print("----------------------")
 
     @profile
     def search(self, key):
@@ -106,7 +107,7 @@ class Hotel:
         if result == -1:
             return f"room {key} is empty"
 
-        return f"found: {result}"
+        return f"found: {result}-{key:09d}"
 
     @profile
     def remove(self, key):
@@ -120,8 +121,4 @@ class Hotel:
 
 
 if __name__ == "__main__":
-    hotel = Hotel()
-    hotel.walk_in(50)
-    hotel.ship(2, 10)
-    # hotel.bus(4, 10)
-    hotel.print_data()
+    pass
