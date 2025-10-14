@@ -11,6 +11,28 @@ def process_memory():
     return mem_info.rss
 
 
+def _human_bytes(n: int) -> str:
+    units = ["B", "KB", "MB", "GB", "TB", "PB", "EB"]
+    v = float(abs(n))
+    i = 0
+    while v >= 1024.0 and i < len(units) - 1:
+        v /= 1024.0
+        i += 1
+    return f"{v:.2f} {units[i]}"
+
+
+def _fmt_bytes(n: int) -> str:
+    # 12,345 B (12.06 KB)
+    return f"{n:,} B ({_human_bytes(n)})"
+
+
+def _fmt_diff(n: int) -> str:
+    # +4,096 B (+4.00 KB) or -4,096 B (-4.00 KB)
+    sign = "+" if n >= 0 else "-"
+    a = abs(n)
+    return f"{sign}{a:,} B ({sign}{_human_bytes(a)})"
+
+
 # decorator function allow program to calculate space and time used
 def profile(func, *, callback: Optional[Callable] = None, message: Optional[str] = None):
 
@@ -37,8 +59,8 @@ def profile(func, *, callback: Optional[Callable] = None, message: Optional[str]
                 pass
         else:
             print(
-                f"{used_msg}: memory {mem_after} Bytes (diff {mem_diff} Bytes)")
-            print(f"{used_msg}: {elapsed_ms} ms")
+                f"{used_msg}: memory {_fmt_bytes(mem_after)}, diff {_fmt_diff(mem_diff)}")
+            print(f"{used_msg}: {elapsed_ms:.2f} ms")
 
         return result
     return wrapper

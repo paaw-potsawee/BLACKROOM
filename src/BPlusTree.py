@@ -521,6 +521,9 @@ class BPlusTree:
                     self._print_tree(child, level + 1)
 
     def print_leaf(self):
+        if self.is_empty():
+            print('Hotel empty')
+            return
         node = self.__root
         while not node.is_leaf:
             node = node.children[0]
