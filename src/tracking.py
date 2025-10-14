@@ -34,33 +34,28 @@ def _fmt_diff(n: int) -> str:
 
 
 # decorator function allow program to calculate space and time used
-def profile(func, *, callback: Optional[Callable] = None, message: Optional[str] = None):
+def profile(_func: Optional[Callable] = None, *, message: Optional[str] = None):
 
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        runtime_msg = kwargs.pop('profile_msg', None)
-        used_msg = runtime_msg or message or func.__name__
+    def decorator(func: Callable):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            runtime_msg = kwargs.pop('profile_msg', None)
+            used_msg = runtime_msg or message or func.__name__
 
-        mem_before = process_memory()
-        start_time = time()
-        result = func(*args, **kwargs)
-        mem_after = process_memory()
-        elapsed_ms = (time() - start_time) * 1000
-        mem_diff = mem_after - mem_before
+            mem_before = process_memory()
+            start_time = time()
+            result = func(*args, **kwargs)
+            mem_after = process_memory()
+            elapsed_ms = (time() - start_time) * 1000
+            mem_diff = mem_after - mem_before
 
-        if os.getenv('ENV') == 'test':
-            return result
+            if os.getenv('ENV') == 'test':
+                return result
 
-        if callback:
-            try:
-                callback(func.__name, mem_before, mem_after, mem_diff,
-                         elapsed_ms, result, args, kwargs)
-            except:
-                pass
-        else:
             print(
                 f"{used_msg}: memory {_fmt_bytes(mem_after)}, diff {_fmt_diff(mem_diff)}")
             print(f"{used_msg}: {elapsed_ms:.2f} ms")
 
-        return result
-    return wrapper
+            return result
+        return wrapper
+    return decorator if _func is None else decorator(_func)

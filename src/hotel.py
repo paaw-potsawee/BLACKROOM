@@ -45,7 +45,7 @@ class Hotel:
 
     # insertion method
     # walk in shift current guest by number of new guests
-    @profile
+    @profile(message='walk in logic')
     def walk_in(self, n, profile_msg: str | None = None):
         # initial build (bulk load)
         if (profile_msg == "initialize") or self.__tree.is_empty():
@@ -63,10 +63,10 @@ class Hotel:
 
     # bus (conceptually infinity guests on n bus)
     @profile
-    def bus(self, total_bus, guest_per_bus, is_walk=False):
+    def bus(self, total_bus, guest_per_bus, profile_msg: str | None = None):
         self.__tree.process_room_number(
             lambda x: x * (total_bus + 1))
-        guest_channel = 2 if is_walk else 3
+        guest_channel = 2 if profile_msg != 'bus (finite) logic' else 3
         for bus_no in tqdm(range(1, total_bus + 1)):
             for i in range(1, guest_per_bus + 1):
                 guest_no = ((i * (total_bus + 1)) - bus_no)
@@ -75,7 +75,7 @@ class Hotel:
 
         self.__guest_order += 1
 
-    @profile
+    @profile(message='bus (infinite) logic')
     def ship(self, bus_per_ship, guest_per_bus):
         # Apply triangular transform: tri_plus(x) = x*(x+1)//2
         self.__tree.process_room_number(lambda x: (((x + 1) * (x)) // 2))
@@ -88,15 +88,18 @@ class Hotel:
 
         self.__guest_order += 1
 
-    @profile
+    @profile(message='manual insertion')
     def manual_insert(self, key):
         # insert at specific room if guest exists will replace that guest
         guest = Guest(5, self.__guest_order)
         self.__tree.insert((key, guest))
         self.__guest_order += 1
 
+    @profile(message='fetch all guest')
     def print_data(self):
+        print("--- Current Guests ---")
         self.__tree.print_leaf()
+        print("----------------------")
 
     @profile
     def search(self, key):

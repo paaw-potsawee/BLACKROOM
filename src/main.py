@@ -91,9 +91,7 @@ def main():
                 if len(parts) == 1:
                     clear_screen()
                     print_blackroom()
-                    print("--- Current Guests ---")
                     hotel.print_data()
-                    print("----------------------")
                 else:
                     print("Usage: p")
 
@@ -158,7 +156,8 @@ def main():
                             if total_number <= 0:
                                 print('number input must in positive integer')
                             else:
-                                hotel.bus(1, total_number)
+                                hotel.bus(1, total_number,
+                                          profile_msg='walk in (infinity) logic')
                         case 3:
                             # insert n buses
                             guest_per_bus = int(
@@ -167,7 +166,8 @@ def main():
                             if total_bus <= 0 or guest_per_bus <= 0:
                                 print('number input must in positive integer')
                             else:
-                                hotel.bus(total_bus, guest_per_bus)
+                                hotel.bus(total_bus, guest_per_bus,
+                                          profile_msg='bus (finite) logic')
                         case 4:
                             # insert infinite bus
                             guests = int(
