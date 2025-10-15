@@ -63,28 +63,48 @@ class Hotel:
 
     # bus (conceptually infinity guests on n bus)
     @profile
-    def bus(self, total_bus, guest_per_bus, profile_msg: str | None = None):
+    def bus(self, total_bus: int, guest_in_bus: list[int], max_guest: int, profile_msg: str | None = None):
         self.__tree.process_room_number(
             lambda x: x * (total_bus + 1))
         guest_channel = 2 if profile_msg != 'bus (finite) logic' else 3
-        for bus_no in tqdm(range(1, total_bus + 1)):
-            for i in range(1, guest_per_bus + 1):
-                guest_no = ((i * (total_bus + 1)) - bus_no)
-                guest = Guest(guest_channel, self.__guest_order)
-                self.__tree.insert((guest_no, guest))
+        for guest in range(1, max_guest + 1):
+            for bus in range(1, total_bus + 1):
+                print(bus, guest)
+                if guest_in_bus[bus - 1] > 0:
+                    room = ((guest * (total_bus + 1)) - bus)
+                    self.__tree.insert(
+                        (room, Guest(guest_channel, self.__guest_order)))
+                    guest_in_bus[bus - 1] -= 1
+        # for i in tqdm(range(1, guest_per_bus + 1)):
+        #     for bus_no in range(1, total_bus + 1):
+        #         guest_no = ((i * (total_bus + 1)) - bus_no)
+        #         guest = Guest(guest_channel, self.__guest_order)
+        #         self.__tree.insert((guest_no, guest))
 
         self.__guest_order += 1
 
     @profile(message='bus (infinite) logic')
-    def ship(self, bus_per_ship, guest_per_bus):
+    def ship(self, total_bus: int, guest_in_bus: list[int], sum_val: int):
         # Apply triangular transform: tri(x) = x*(x+1)//2
         self.__tree.process_room_number(lambda x: (((x + 1) * (x)) // 2))
-        for bus in tqdm(range(1, bus_per_ship + 1)):
-            for i in range(1, guest_per_bus + 1):
-                guest_no = ((bus + i) * (bus + i - 1)) // 2 + i
-                guest = Guest(4, self.__guest_order)
-                self.__tree.insert((guest_no, guest))
-
+        bus = 1
+        guest = 1
+        max_value = 1
+        sum_val = sum(guest_in_bus)
+        while sum_val > 0:
+            guest = 1
+            bus = max_value
+            while bus > 0 and bus <= max_value and guest > 0 and guest <= max_value:
+                if bus <= total_bus and guest_in_bus[bus - 1] > 0:
+                    guest_no = ((bus + guest) *
+                                (bus + guest - 1)) // 2 + guest
+                    guest_class = Guest(4, self.__guest_order)
+                    self.__tree.insert((guest_no, guest_class))
+                    guest_in_bus[bus - 1] -= 1
+                    sum_val -= 1
+                guest += 1
+                bus -= 1
+            max_value += 1
         self.__guest_order += 1
 
     @profile(message='manual insertion')
@@ -120,4 +140,9 @@ class Hotel:
 
 
 if __name__ == "__main__":
-    pass
+    h = Hotel()
+    h.walk_in(5, 'initialize')
+    h.print_data()
+    lst = [4, 5, 6]
+    h.bus(3, lst, 6)
+    h.print_data()
