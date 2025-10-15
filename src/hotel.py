@@ -69,7 +69,6 @@ class Hotel:
         guest_channel = 2 if profile_msg != 'bus (finite) logic' else 3
         for guest in range(1, max_guest + 1):
             for bus in range(1, total_bus + 1):
-                print(bus, guest)
                 if guest_in_bus[bus - 1] > 0:
                     room = ((guest * (total_bus + 1)) - bus)
                     self.__tree.insert(

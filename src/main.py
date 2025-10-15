@@ -162,7 +162,7 @@ def main():
                         if total_number <= 0:
                             print('number input must in positive integer')
                         else:
-                            hotel.bus(1, total_number,
+                            hotel.bus(1, [total_number], total_number,
                                       profile_msg='walk in (infinity) logic')
                     case 3:
                         # insert n buses (finite)
