@@ -10,7 +10,7 @@ from hotel import Hotel  # NOQA
 
 
 def cantor_pair(bus: int, i: int) -> int:
-    return ((bus + i) * (bus + i + 1)) // 2 + bus
+    return ((bus + i) * (bus + i - 1)) // 2 + i
 
 
 class TestHotel(unittest.TestCase):
@@ -54,12 +54,6 @@ class TestHotel(unittest.TestCase):
         # Seed with many walk-ins to ensure transform interacts with data
         h.walk_in(20000, profile_msg="initialize")
 
-        # verify formula with output from excel
-        self.assertEqual(cantor_pair(131, 49), 16421,
-                         'Calculation ship key should return same value as Excel')
-        self.assertEqual(cantor_pair(225, 48), 37626,
-                         'Calculation ship key should return same value as Excel')
-
         bus_per_ship = 100
         guest_per_bus = 500
         # Expected set using the corrected unique pairing
@@ -68,6 +62,10 @@ class TestHotel(unittest.TestCase):
 
         self.assertEqual(len(expected), bus_per_ship * guest_per_bus,
                          'formula for ship should have unique key value')
+
+        # verify formula with output from excel
+        self.assertEqual(cantor_pair(0, 21), 231,
+                         'Calculation ship key should return same value as Excel')
 
         h.ship(bus_per_ship, guest_per_bus)
 

@@ -440,9 +440,8 @@ class BPlusTree:
     def __physical_key(self, logical_key: int):
         if not self.__tri_active:
             return (logical_key - self.__g_offset) // self.__g_scale
-        # tri_plus inverse (floor): u=floor((V - T2)/S2), r=floor(sqrt(8u+1)), n_floor=(r-1)//2
         u = (logical_key - self.__out_offset) // self.__out_scale
-        r = isqrt(max(0, 8 * u + 1))
+        r = isqrt(8 * u + 1)
         n_floor = (r - 1) // 2
         return (n_floor - self.__in_offset) // self.__in_scale
 
@@ -450,7 +449,6 @@ class BPlusTree:
         if not self.__tri_active:
             d = logical_key - self.__g_offset
             return d // self.__g_scale if d % self.__g_scale == 0 else None
-        # tri_plus exact: V = S2 * (n*(n+1)//2) + T2, where n = S1*k + T1
         d2 = logical_key - self.__out_offset
         if d2 % self.__out_scale != 0:
             return None
