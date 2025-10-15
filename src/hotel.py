@@ -6,17 +6,17 @@ from tqdm import tqdm
 class Guest:
     __slots__ = ('__id')
 
-    def __init__(self, channel: int, arrived_order: int):
-        self.__id = self.__get_id(channel, arrived_order)
+    def __init__(self, channel: int, arrived_order: int, order: int = 0, bus_order: int = 0):
+        self.__id = self.__get_id(channel, arrived_order, order, bus_order)
 
     @property
     def id(self): return self.__id
 
     @staticmethod
-    def __get_id(channel, arrived_order):
+    def __get_id(channel, arrived_order, order, bus_order):
         ch = {0: 'INT_INF', 1: 'WLK_FIN', 2: 'WLK_INF', 3: 'BUS_FIN',
               4: 'BUS_INF', 5: 'MAN_FIN'}.get(channel, f'CH{channel}')
-        return f"{ch}-{arrived_order:03d}"
+        return f"{ch}-{arrived_order:03d}-{order:05d}-{bus_order:05d}"
 
     def __repr__(self) -> str:
         return f'{self.__id}'
@@ -57,7 +57,7 @@ class Hotel:
 
         self.__tree.process_room_number(lambda x: x + n)
         for i in tqdm(range(1, n + 1)):
-            guest = Guest(1, self.__guest_order)
+            guest = Guest(1, self.__guest_order, i)
             self.__tree.insert((i, guest))
         self.__guest_order += 1
 
@@ -73,13 +73,8 @@ class Hotel:
                 if guest_in_bus[bus - 1] > 0:
                     room = ((guest * (total_bus + 1)) - bus)
                     self.__tree.insert(
-                        (room, Guest(guest_channel, self.__guest_order)))
+                        (room, Guest(guest_channel, self.__guest_order, guest, bus)))
                     guest_in_bus[bus - 1] -= 1
-        # for i in tqdm(range(1, guest_per_bus + 1)):
-        #     for bus_no in range(1, total_bus + 1):
-        #         guest_no = ((i * (total_bus + 1)) - bus_no)
-        #         guest = Guest(guest_channel, self.__guest_order)
-        #         self.__tree.insert((guest_no, guest))
 
         self.__guest_order += 1
 
@@ -98,7 +93,7 @@ class Hotel:
                 if bus <= total_bus and guest_in_bus[bus - 1] > 0:
                     guest_no = ((bus + guest) *
                                 (bus + guest - 1)) // 2 + guest
-                    guest_class = Guest(4, self.__guest_order)
+                    guest_class = Guest(4, self.__guest_order, guest, bus)
                     self.__tree.insert((guest_no, guest_class))
                     guest_in_bus[bus - 1] -= 1
                     sum_val -= 1
