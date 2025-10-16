@@ -173,7 +173,7 @@ def main():
                             if total_number <= 0:
                                 print('number input must in positive integer')
                             else:
-                                hotel.bus(1, [total_number], total_number,
+                                hotel.bus(1, [total_number], total_number, msg='walk in (infinity) logic',
                                           profile_msg='walk in (infinity) logic')
                         case 3:
                             # insert n buses (finite)
@@ -200,7 +200,7 @@ def main():
                                             break
                                         except ValueError:
                                             print('number please !!!!')
-                                hotel.bus(total_bus, guest_list, max_guest,
+                                hotel.bus(total_bus, guest_list, max_guest, msg='bus (finite) logic',
                                           profile_msg='bus (finite) logic')
                             elif flag is None:
                                 # uniform guests per bus
@@ -214,7 +214,7 @@ def main():
                                     print('number input must be positive integer')
                                     break
                                 guest_list = [guest_per_bus] * total_bus
-                                hotel.bus(total_bus, guest_list, guest_list[0],
+                                hotel.bus(total_bus, guest_list, guest_list[0], msg='bus (finite) logic',
                                           profile_msg='bus (finite) logic')
                             else:
                                 print('incorrect usage channel -c')

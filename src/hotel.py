@@ -63,11 +63,10 @@ class Hotel:
 
     # bus (conceptually infinity guests on n bus)
     @profile
-    def bus(self, total_bus: int, guest_in_bus: list[int], max_guest: int, profile_msg: str | None = None):
+    def bus(self, total_bus: int, guest_in_bus: list[int], max_guest: int, msg, profile_msg: str | None = None):
         self.__tree.process_room_number(
             lambda x: x * (total_bus + 1))
-        print(profile_msg)
-        guest_channel = 2 if profile_msg != 'bus (finite) logic' else 3
+        guest_channel = 2 if msg != 'bus (finite) logic' else 3
         for guest in range(1, max_guest + 1):
             for bus in range(1, total_bus + 1):
                 if guest_in_bus[bus - 1] > 0:
