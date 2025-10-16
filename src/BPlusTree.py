@@ -138,8 +138,7 @@ class BPlusTree:
         pos = self.__binary_search(leaf_node.keys, key)
         idx = pos - 1
         if 0 <= idx < len(leaf_node.keys) and phy_key == leaf_node.keys[idx]:
-            print(f'Guest exists in room {key}. Guest will be replaced')
-            leaf_node.children[idx] = val
+            print(f'Guest exists in room {key}. Can not insert')
             return
 
         leaf_node.insert(phy_key, val)
@@ -544,7 +543,8 @@ class BPlusTree:
 
         with open(filename, "w", newline="") as file:
             writer = csv.writer(file)
-            writer.writerow(["Room Number", "Guest Info"])
+            writer.writerow(
+                ["No", "Method-group_order-order-bus_order-Room_Number"])
 
             while node is not None:
                 for i in range(len(node.keys)):
