@@ -39,7 +39,7 @@ def profile(_func: Optional[Callable] = None, *, message: Optional[str] = None):
     def decorator(func: Callable):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            runtime_msg = kwargs.pop('profile_msg', None)
+            runtime_msg = kwargs.get('profile_msg', None)
             used_msg = runtime_msg or message or func.__name__
 
             mem_before = process_memory()

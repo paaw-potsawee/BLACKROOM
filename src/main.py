@@ -55,6 +55,8 @@ def main():
     print_blackroom()
     try:
         initial_number = int(input("Enter initialize amount: "))
+        if initial_number <= 0:
+            print('Initialize amount must be positive integer')
     except ValueError as e:
         print('number please !!!!')
         return
@@ -107,6 +109,9 @@ def main():
             elif command == 's':
                 if len(parts) == 2:
                     key = int(parts[1])
+                    if key <= 0:
+                        print('Key must be positive interger')
+                        continue
                     print(f"Searching for guest with key: {key}")
                     print(hotel.search(key))
                 else:
@@ -116,6 +121,9 @@ def main():
             elif command == 'r':
                 if len(parts) == 2:
                     key = int(parts[1])
+                    if key <= 0:
+                        print('Key must be positive interger')
+                        continue
                     print(f"Removing guest with key: {key}")
                     print(hotel.remove(key))
                 else:
@@ -154,6 +162,9 @@ def main():
                             # insert n guests
                             total_number = int(
                                 input("Enter guest number: "))
+                            if total_number <= 0:
+                                print('Channel must be an positive integer')
+                                continue
                             hotel.walk_in(total_number)
                         case 2:
                             # insert infinite guest
