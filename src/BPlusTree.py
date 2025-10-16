@@ -540,7 +540,7 @@ class BPlusTree:
         node = self.__root
         while not node.is_leaf:
             node = node.children[0]
-
+        count = 1
         with open(filename, "w", newline="") as file:
             writer = csv.writer(file)
             writer.writerow(
@@ -550,7 +550,8 @@ class BPlusTree:
                 for i in range(len(node.keys)):
                     key = self.__logical_key(node.keys[i])
                     value = f'{node.children[i]}-{key:09d}'
-                    writer.writerow([key, value])
+                    writer.writerow([count, value])
+                    count += 1
                 node = node.next_key
 
         print(f"Guest data exported to {filename}")
