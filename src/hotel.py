@@ -84,7 +84,6 @@ class Hotel:
         bus = 1
         guest = 1
         max_value = 1
-        sum_val = sum(guest_in_bus)
         while sum_val > 0:
             guest = 1
             bus = max_value

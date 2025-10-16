@@ -232,6 +232,7 @@ def main():
                                     print('number input must be positive integer')
                                     break
                                 guest_list = []
+                                sum_val = 0
                                 for idx in range(total_bus):
                                     while True:
                                         try:
@@ -241,13 +242,14 @@ def main():
                                                 print(
                                                     'number input must be positive integer')
                                                 continue
+                                            sum_val += 1
                                             guest_list.append(g)
                                             break
                                         except ValueError:
                                             print('number please !!!!')
-                                max_guest = int(
-                                    input('Enter max guest per bus: '))
-                                hotel.ship(total_bus, guest_list, max_guest)
+                                # max_guest = int(
+                                #     input('Enter max guest per bus: '))
+                                hotel.ship(total_bus, guest_list, sum_val)
                             elif flag is None:
                                 # uniform guests per bus
                                 try:
@@ -262,7 +264,7 @@ def main():
                                     print('number input must be positive integer')
                                     break
                                 guest_list = [guests] * buses
-                                hotel.ship(buses, guest_list, guest_list[0])
+                                hotel.ship(buses, guest_list, sum(guest_list))
                             else:
                                 print('incorrect usage channel -c')
                                 continue
