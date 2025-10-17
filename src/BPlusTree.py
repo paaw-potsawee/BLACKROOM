@@ -138,8 +138,7 @@ class BPlusTree:
         pos = self.__binary_search(leaf_node.keys, key)
         idx = pos - 1
         if 0 <= idx < len(leaf_node.keys) and phy_key == leaf_node.keys[idx]:
-            print(f'Guest exists in room {key}. Guest will be replaced')
-            leaf_node.children[idx] = val
+            print(f'Guest exists in room {key}. Can not insert')
             return
 
         leaf_node.insert(phy_key, val)
@@ -440,9 +439,8 @@ class BPlusTree:
     def __physical_key(self, logical_key: int):
         if not self.__tri_active:
             return (logical_key - self.__g_offset) // self.__g_scale
-        # tri_plus inverse (floor): u=floor((V - T2)/S2), r=floor(sqrt(8u+1)), n_floor=(r-1)//2
         u = (logical_key - self.__out_offset) // self.__out_scale
-        r = isqrt(max(0, 8 * u + 1))
+        r = isqrt(8 * u + 1)
         n_floor = (r - 1) // 2
         return (n_floor - self.__in_offset) // self.__in_scale
 
@@ -450,7 +448,6 @@ class BPlusTree:
         if not self.__tri_active:
             d = logical_key - self.__g_offset
             return d // self.__g_scale if d % self.__g_scale == 0 else None
-        # tri_plus exact: V = S2 * (n*(n+1)//2) + T2, where n = S1*k + T1
         d2 = logical_key - self.__out_offset
         if d2 % self.__out_scale != 0:
             return None
@@ -543,16 +540,18 @@ class BPlusTree:
         node = self.__root
         while not node.is_leaf:
             node = node.children[0]
-
+        count = 1
         with open(filename, "w", newline="") as file:
             writer = csv.writer(file)
-            writer.writerow(["Room Number", "Guest Info"])
+            writer.writerow(
+                ["No", "Method-group_order-order-bus_order-Room_Number"])
 
             while node is not None:
                 for i in range(len(node.keys)):
                     key = self.__logical_key(node.keys[i])
                     value = f'{node.children[i]}-{key:09d}'
-                    writer.writerow([key, value])
+                    writer.writerow([count, value])
+                    count += 1
                 node = node.next_key
 
         print(f"Guest data exported to {filename}")

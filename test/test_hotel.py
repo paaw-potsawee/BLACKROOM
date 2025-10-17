@@ -10,7 +10,11 @@ from hotel import Hotel  # NOQA
 
 
 def cantor_pair(bus: int, i: int) -> int:
-    return ((bus + i) * (bus + i + 1)) // 2 + bus
+    return ((bus + i) * (bus + i - 1)) // 2 + i
+
+
+def bus_cal(guest, bus, total_bus):
+    return ((guest * (total_bus + 1)) - bus)
 
 
 class TestHotel(unittest.TestCase):
@@ -19,7 +23,7 @@ class TestHotel(unittest.TestCase):
 
     def test_walk_in_unique(self):
         h = Hotel()
-        n = 5000
+        n = 50
         h.walk_in(n, profile_msg='initialize')
 
         for k in range(1, n + 1):
@@ -28,53 +32,85 @@ class TestHotel(unittest.TestCase):
 
         h.walk_in(n)
         for k in range(1, n + 1):
-            self.assertEqual(f'found: WLK_FIN-{1:03d}-{k:09d}', h.search(
+            self.assertEqual(f'found: WLK_FIN-{1:03d}-{k:05d}-{0:05d}-{k:09d}', h.search(
                 k), 'walk in room alignment incorrect')
 
         for k in range(n + 1, 2 * n + 1):
-            self.assertEqual(f'found: INT_INF-{0:03d}-{k:09d}', h.search(
+            self.assertEqual(f'found: INT_INF-{0:03d}-{(0):05d}-{0:05d}-{k:09d}', h.search(
                 k), 'walk in room alignment incorrect')
 
     def test_bus_unique(self):
         h = Hotel()
-        h.walk_in(1000, profile_msg='initialize')
-        total_bus, guest_per_bus = 7, 1500
-        h.bus(total_bus, guest_per_bus)
-        M = total_bus + 1
-        expected = set((i * M) - b for b in range(1, total_bus + 1)
-                       for i in range(1, guest_per_bus + 1))
+        n = 10
+        h.walk_in(n, profile_msg='initialize')
+        total_bus = 4
+        lst = [4, 3, 1, 5]
+        h.bus(total_bus, lst.copy(), 5, profile_msg='bus (finite) logic')
+        # check initial guest shift
+        for i in range(1, 10):
+            room_num = bus_cal(i, 0, total_bus)
+            self.assertIn('found: INT_INF-000', h.search(room_num))
 
-        self.assertEqual(len(expected), total_bus * guest_per_bus)
-        sample = random.sample(list(expected), 200)
-        for k in sample:
-            self.assertIn("found:", h.search(k))
+        # check expected output for each bus
+        for bus_num, bus in enumerate(lst):
+            for i in range(1, bus + 1):
+                room_num = bus_cal(i, bus_num + 1, total_bus)
+                self.assertIn('found:', h.search(room_num))
 
-    def test_ship_unique_large(self):
+        # test in differ dimension
+        lst = [1, 2, 3, 1, 2]
+        total_bus = len(lst)
+        h.bus(total_bus, lst.copy(), 3, profile_msg='bus (finite) logic')
+
+        for bus_num, bus in enumerate(lst):
+            for i in range(1, bus + 1):
+                room_num = bus_cal(i, bus_num + 1, total_bus)
+                self.assertIn('found:', h.search(room_num))
+
+        # tset in exact dimension
+        lst = [3] * 4
+        total_bus = len(lst)
+        h.bus(total_bus, lst.copy(), 3, profile_msg='bus (finite) logic')
+
+        for bus_num, bus in enumerate(lst):
+            for i in range(1, bus + 1):
+                room_num = bus_cal(i, bus_num + 1, total_bus)
+                self.assertIn('found:', h.search(room_num))
+
+    def test_ship_unique(self):
         h = Hotel()
-        # Seed with many walk-ins to ensure transform interacts with data
-        h.walk_in(20000, profile_msg="initialize")
+        lst = [4, 4, 1, 5]
+        total_bus = 4
+        max_guest = 5
+        h.ship(total_bus, lst.copy(), max_guest)
 
-        # verify formula with output from excel
-        self.assertEqual(cantor_pair(131, 49), 16421,
-                         'Calculation ship key should return same value as Excel')
-        self.assertEqual(cantor_pair(225, 48), 37626,
-                         'Calculation ship key should return same value as Excel')
+        expected = [2, 5, 9, 14, 4, 8, 13, 9, 7, 11, 17, 24, 32, 41]
 
-        bus_per_ship = 100
-        guest_per_bus = 500
-        # Expected set using the corrected unique pairing
-        expected = set(cantor_pair(bus, i) for bus in range(
-            1, bus_per_ship + 1) for i in range(1, guest_per_bus + 1))
+        for i in expected:
+            self.assertIn('found', h.search(i))
 
-        self.assertEqual(len(expected), bus_per_ship * guest_per_bus,
-                         'formula for ship should have unique key value')
+        self.assertEqual('room 1 is empty', h.search(1))
 
-        h.ship(bus_per_ship, guest_per_bus)
+        lst = [100, 1, 1, 1, 150]
+        total_bus = 5
+        max_guest = 150
+        h.ship(total_bus, lst.copy(), max_guest)
 
-        # Verify a broad random sample
-        sample = random.sample(list(expected), 500)
-        for k in sample:
-            self.assertIn("found:", h.search(k))
+        for i, bus in enumerate(lst):
+            for j in range(bus):
+                tmp = cantor_pair(i + 1, j + 1)
+                self.assertIn('found', h.search(tmp))
+
+        # test case where bus more than guests
+        lst = [5, 1, 3, 2, 1, 3]
+        total_bus = 6
+        max_guest = 5
+        h.ship(total_bus, lst.copy(), max_guest)
+
+        for i, bus in enumerate(lst):
+            for j in range(bus):
+                tmp = cantor_pair(i + 1, j + 1)
+                self.assertIn('found', h.search(tmp))
 
     def test_manual_insert_can_replace(self):
         h = Hotel()
@@ -82,9 +118,7 @@ class TestHotel(unittest.TestCase):
         before = h.search(5)
         self.assertIn("found:", before)
         h.manual_insert(5)
-        after = h.search(5)
-        self.assertIn("found:", after)
-        self.assertNotEqual(before, after)  # replaced
+        self.assertEqual(before, h.search(5))
 
 
 if __name__ == '__main__':

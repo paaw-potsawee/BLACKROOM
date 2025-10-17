@@ -6,17 +6,17 @@ from tqdm import tqdm
 class Guest:
     __slots__ = ('__id')
 
-    def __init__(self, channel: int, arrived_order: int):
-        self.__id = self.__get_id(channel, arrived_order)
+    def __init__(self, channel: int, arrived_order: int, order: int = 0, bus_order: int = 0):
+        self.__id = self.__get_id(channel, arrived_order, order, bus_order)
 
     @property
     def id(self): return self.__id
 
     @staticmethod
-    def __get_id(channel, arrived_order):
+    def __get_id(channel, arrived_order, order, bus_order):
         ch = {0: 'INT_INF', 1: 'WLK_FIN', 2: 'WLK_INF', 3: 'BUS_FIN',
               4: 'BUS_INF', 5: 'MAN_FIN'}.get(channel, f'CH{channel}')
-        return f"{ch}-{arrived_order:03d}"
+        return f"{ch}-{arrived_order:03d}-{order:05d}-{bus_order:05d}"
 
     def __repr__(self) -> str:
         return f'{self.__id}'
@@ -57,35 +57,47 @@ class Hotel:
 
         self.__tree.process_room_number(lambda x: x + n)
         for i in tqdm(range(1, n + 1)):
-            guest = Guest(1, self.__guest_order)
+            guest = Guest(1, self.__guest_order, i)
             self.__tree.insert((i, guest))
         self.__guest_order += 1
 
     # bus (conceptually infinity guests on n bus)
     @profile
-    def bus(self, total_bus, guest_per_bus, profile_msg: str | None = None):
+    def bus(self, total_bus: int, guest_in_bus: list[int], max_guest: int, msg, profile_msg: str | None = None):
         self.__tree.process_room_number(
             lambda x: x * (total_bus + 1))
-        guest_channel = 2 if profile_msg != 'bus (finite) logic' else 3
-        for bus_no in tqdm(range(1, total_bus + 1)):
-            for i in range(1, guest_per_bus + 1):
-                guest_no = ((i * (total_bus + 1)) - bus_no)
-                guest = Guest(guest_channel, self.__guest_order)
-                self.__tree.insert((guest_no, guest))
+        guest_channel = 2 if msg != 'bus (finite) logic' else 3
+        for guest in range(1, max_guest + 1):
+            for bus in range(1, total_bus + 1):
+                if guest_in_bus[bus - 1] > 0:
+                    room = ((guest * (total_bus + 1)) - bus)
+                    self.__tree.insert(
+                        (room, Guest(guest_channel, self.__guest_order, guest, bus)))
+                    guest_in_bus[bus - 1] -= 1
 
         self.__guest_order += 1
 
     @profile(message='bus (infinite) logic')
-    def ship(self, bus_per_ship, guest_per_bus):
-        # Apply triangular transform: tri_plus(x) = x*(x+1)//2
+    def ship(self, total_bus: int, guest_in_bus: list[int], sum_val: int):
+        # Apply triangular transform: tri(x) = x*(x+1)//2
         self.__tree.process_room_number(lambda x: (((x + 1) * (x)) // 2))
-        for bus in tqdm(range(1, bus_per_ship + 1)):
-            for i in range(1, guest_per_bus + 1):
-                # Excel: FLOOR.MATH((($A2+O$1)*($A2+O$1+1))/2)+$A2, with A2=bus, O1=i-1
-                guest_no = ((bus + i) * (bus + i + 1)) // 2 + bus
-                guest = Guest(4, self.__guest_order)
-                self.__tree.insert((guest_no, guest))
-
+        bus = 1
+        guest = 1
+        max_value = 1
+        while sum_val > 0:
+            guest = 1
+            bus = max_value
+            while bus > 0 and bus <= max_value and guest > 0 and guest <= max_value:
+                if bus <= total_bus and guest_in_bus[bus - 1] > 0:
+                    guest_no = ((bus + guest) *
+                                (bus + guest - 1)) // 2 + guest
+                    guest_class = Guest(4, self.__guest_order, guest, bus)
+                    self.__tree.insert((guest_no, guest_class))
+                    guest_in_bus[bus - 1] -= 1
+                    sum_val -= 1
+                guest += 1
+                bus -= 1
+            max_value += 1
         self.__guest_order += 1
 
     @profile(message='manual insertion')
@@ -121,4 +133,9 @@ class Hotel:
 
 
 if __name__ == "__main__":
-    pass
+    h = Hotel()
+    h.walk_in(5, 'initialize')
+    h.print_data()
+    lst = [4, 5, 6]
+    h.bus(3, lst, 6)
+    h.print_data()

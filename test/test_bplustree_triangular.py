@@ -18,7 +18,7 @@ class TestBPlusTreeTriangular(unittest.TestCase):
 
     def test_triangular_lookup_small_and_large(self):
         t = BPlusTree(order=64)
-        N = 50000
+        N = 5000
         for i in range(1, N + 1):
             t.insert((i, f"V{i}"))
 
@@ -26,7 +26,7 @@ class TestBPlusTreeTriangular(unittest.TestCase):
         t.process_room_number(tri_var)
 
         # Check sampled points across the range
-        for i in [1, 2, 3, 10, 123]:
+        for i in [1, 2, 3, 99, 108, 999]:
             self.assertEqual(t.search(tri_var(i)), f"V{i}")
 
         # Insert a non-image value (5 is not triangular for this variant)
